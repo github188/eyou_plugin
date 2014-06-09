@@ -1,0 +1,452 @@
+#!/usr/bin/env bash
+# by: liguopeng@eyou.net 165
+
+#备份策略
+	#1.	指定时间全量备份
+	#2.	在指定时间内 时隔时间 进行对上一次备份的增量备份。
+	#3.	删除 指定时间之前的 间隔时间备份。
+
+####################
+## 需要定义的变量 ##
+####################
+
+#指定全量备份的时间间隔/天,必须为正整数,为0时代表除第一次外其他均为增量备份。
+ALL_BAK_Day="7"
+
+#指定全量备份的开始时间 24小时制。
+ALL_BAK_Hours="0"
+
+#指定增量备份的间隔时间/小时，必须为大于或等于1的正整数。
+INC_BAK_Hours="24"
+
+#指定删除全量备份的间隔时间，必须是 ALL_BAK_Day 的正整数倍, 当ALL_BAK_Day为0时，该项目不生效。
+DEL_BAK_Day="2"
+
+#指定增量备份合并到全备的时间间隔, 必须是 INC_BAK_Hours 的正整数倍 /（未使用）跳过
+INC_BAK_Merge_Hours="7"
+
+#指定增量备份与全备合并后是否保留增量备份，为0则不保留。 /（未使用）跳过
+DEL_Merge_Hours="1"
+
+
+#指定备份文件路径
+INNOBAK_DIR="/data"
+
+#指定mysql目录的权限
+MYSQL_DIR_USER="eyou:eyou"
+
+#配置默认xback工具对应的mysql版本/目前5.1 5.5 5.6
+DEFAULT_MYSQL_VERSION="5.6"
+
+#配置MYSQL 对应的版本
+MYSQL_VERSION="5.6"
+#配置MYSQL_INDEX 对应的版本
+MYSQL_INDEX_VERSION="5.6"
+#配置MYSQL_LOG 对应的版本
+MYSQL_LOG_VERSION="5.6"
+
+####################
+## 默认全局的变量 ##
+####################
+
+EYOU_DIR="/usr/local/eyou/mail"
+EYOU_ETC="${EYOU_DIR}/etc/eyou_mail.ini"
+EYOU_MYSQL_CONF="${EYOU_DIR}/etc/mysql"
+EYOU_MYSQL="${EYOU_DIR}/opt/mysql/bin/mysql"
+EYOU_XTRBACK_BIN="${EYOU_DIR}/opt/xtrabackup/bin"
+EYOU_XTRBACK_BIN51="${EYOU_DIR}/opt/xtrabackup51/bin"
+EYOU_XTRBACK_BIN55="${EYOU_DIR}/opt/xtrabackup55/bin"
+EYOU_XTRBACK_BIN56="${EYOU_DIR}/opt/xtrabackup56/bin"
+EYOU_INNOBACK="${EYOU_XTRBACK_BIN}/innobackupex"
+EYOU_XTRABACKUP="${EYOU_XTRBACK_BIN}/xtrabackup"
+EYOU_INNOBAK_DIR_NAME="${INNOBAK_DIR}/INNOBACKUPEX"
+EYOU_MAIL_MYSQL="$(grep '^db_name' ${EYOU_ETC}|cut -d '=' -f2|cut -d '"' -f2)"
+EYOU_MAIL_INDEX_MYSQL="$(grep '^dbumi_mysql_dsn' ${EYOU_ETC}|cut -d '=' -f4|cut -d '"' -f1)"
+EYOU_MAIL_LOG_MYSQL="$(grep '^dblog_name' ${EYOU_ETC}|cut -d '=' -f2|cut -d '"' -f2)"
+MYSQL_DATABASE_CONF="${EYOU_MAIL_MYSQL}:my.cnf:${MYSQL_VERSION};${EYOU_MAIL_INDEX_MYSQL}:my_index.cnf:${MYSQL_INDEX_VERSION};${EYOU_MAIL_LOG_MYSQL}:my_log.cnf:${MYSQL_LOG_VERSION}"
+LOG_NAME="${EYOU_INNOBAK_DIR_NAME}/INNOBAK.log"
+BAK_LOCK="${EYOU_INNOBAK_DIR_NAME}/.locak_sql"
+ALL_BAK_STAMP="86400"
+INC_BAK_STAMP="3600"
+DATE_TIME="$(date +%s)"
+
+[ -d "${EYOU_INNOBAK_DIR_NAME}" ] || mkdir ${EYOU_INNOBAK_DIR_NAME}
+
+CHECK_ALL_OR_INC () {
+[ -z "$(rpm -qa perl-DBD-MySQL)" ] && {
+	echo "please install perl-DBD-MySQL ."
+	exit 1
+}
+ALL_BAK_DIR_NAME="$(find ${EYOU_INNOBAK_DIR_NAME} -type d -name "INNOBAK_[0-9]*")"
+[ -z "${ALL_BAK_DIR_NAME}" ] && RUN_BAK_STATUS="ALL_BAK"
+if [ -z "${RUN_BAK_STATUS}" ];then
+	INIT_BAK_TIME="0"
+	for ALL_BAK_DIR in ${ALL_BAK_DIR_NAME}
+		do
+		ALL_BAK_TIME="${ALL_BAK_DIR#*/INNOBAK_}"
+		[ ${ALL_BAK_TIME} -gt ${INIT_BAK_TIME} ] && INIT_BAK_TIME="${ALL_BAK_TIME}"
+		[ $((${DATE_TIME}-${INIT_BAK_TIME})) -gt $((${DEL_BAK_Day}*${ALL_BAK_Day}*${ALL_BAK_STAMP})) -a -z "${RM_BAK_STATUS}" -a "${ALL_BAK_Day}" -ne "0" -a "${DEL_BAK_Day}" -lt "$(find ${EYOU_INNOBAK_DIR_NAME} -type d -name "INNOBAK_[0-9]*"|wc -l)" ] && RM_BAK_STATUS="INNOBAK_${INIT_BAK_TIME}"
+		done
+		[ $((${DATE_TIME}-${INIT_BAK_TIME})) -gt $((${ALL_BAK_Day}*${ALL_BAK_STAMP})) -a "$(date +%H)" -eq "${ALL_BAK_Hours}" -a "${ALL_BAK_Day}" -ne "0" ] && {
+			RUN_BAK_STATUS="ALL_BAK"
+			} || {
+			[ $((${DATE_TIME}-${INIT_BAK_TIME})) -gt $((${INC_BAK_Hours}*${INC_BAK_STAMP})) ] && {
+				RUN_BAK_STATUS="INC_BAK"
+				}
+			}
+	INC_BAK_DIR_NAME="$(find ${EYOU_INNOBAK_DIR_NAME}/INNOBAK_${INIT_BAK_TIME} -type d -name "INC_[0-9]*")"
+	[ -z "${INC_BAK_DIR_NAME}" ] || {
+	INC_BAK_TIME="0"
+	for INC_BAK_DIR in ${INC_BAK_DIR_NAME}
+		do
+		INC_TIME="${INC_BAK_DIR#*/INC_}"
+		[ ${INC_TIME} -gt ${INC_BAK_TIME} ] && {
+			 INC_BAK_TIME="${INC_TIME}"
+			}
+		done
+	[ $((${DATE_TIME}-${INC_BAK_TIME})) -lt $((${INC_BAK_Hours}*${INC_BAK_STAMP})) -a "${RUN_BAK_STATUS}" == "INC_BAK" ] && RUN_BAK_STATUS=""
+	}
+fi
+
+}
+
+check_system () {
+[ -f ${BAK_LOCK} ] && {
+	echo "程序正在运行"
+	exit 1
+	} || {
+	date +%s > $BAK_LOCK
+	}
+
+rm -rf $BAK_LOCK
+}
+
+ALL_MYSQL_BACKUP () {
+	${EYOU_INNOBACK} --user=eyou --password=eyou --no-timestamp --no-lock --defaults-file=${1} ${2} > ${2}.log 2>&1
+}
+
+INC_MYSQL_BACKUP () {
+	${EYOU_INNOBACK} --user=eyou --password=eyou --no-timestamp --no-lock --defaults-file=${1} --incremental --incremental-basedir=${2} ${3} > ${3}.log 2>&1
+}
+
+ALL_MYSQL_APPLY_LOG () {
+	${EYOU_INNOBACK} --user=eyou --password=eyou --apply-log --redo-only --defaults-file=${1} ${2} >> ${3}_${DATE_TIME}.repair.log 2>&1
+}
+
+INC_MYSQL_APPLY_LOG () {
+	${EYOU_INNOBACK} --user=eyou --password=eyou --apply-log --redo-only --defaults-file=${1} ${2} --incremental-dir=${3} >> ${3}_${DATE_TIME}.repair.log 2>&1
+}
+ENDINC_MYSQL_APPLY_LOG () {
+	${EYOU_INNOBACK} --user=eyou --password=eyou --apply-log --defaults-file=${1} ${2} --incremental-dir=${3} >> ${3}_${DATE_TIME}.repair.log 2>&1
+}
+
+MYSQL_COPY_BAK () {
+	${EYOU_INNOBACK} --user=eyou --password=eyou --apply-log --defaults-file=${1} ${2} >> ${3}_${DATE_TIME}.repair.log 2>&1
+	[ "${?}" -eq "0" ] && {
+	${EYOU_INNOBACK} --user=eyou --password=eyou --copy-back --defaults-file=${1} ${2} >> ${3}_${DATE_TIME}.repair.log 2>&1
+	} || {
+	echo "恢复出现错误，请从 ${3}_${DATE_TIME}.repair.log 日志中排查错误。"
+	exit 1
+	}
+}
+
+
+INNOBACKUP_BAKCUP () {
+
+CHECK_ALL_OR_INC
+for i in $(echo $MYSQL_DATABASE_CONF|sed 's/;/ /g')
+do
+	DATANAME="$(echo $i|cut -d ':' -f1)"
+	DATACONF="$(echo $i|cut -d ':' -f2)"
+	MYSQL_VERSION_CONF="$(echo $i|cut -d ':' -f3)"
+	${EYOU_DIR}/opt/mysql/bin/mysqladmin --defaults-file="${EYOU_MYSQL_CONF}/${DATACONF}" ping >/dev/null 2>&1
+	[ "${?}" -eq "0" ] || {
+		echo "$(date +%F" "%H:%M:%S) ${DATANAME} 数据库未启动。" >> ${LOG_NAME}
+		exit 1
+		}
+	MYSQL_VERSION=$($EYOU_MYSQL --defaults-file="${EYOU_MYSQL_CONF}/${DATACONF}" -s -e "status;"|grep 'Server version'|grep -o '5.*-'|awk -F'.' '{print $1"."$2}')
+	if [ "${MYSQL_VERSION}" == "5.6" ] && [ "$DEFAULT_MYSQL_VERSION" == "${MYSQL_VERSION}" ] && [ ! -f /usr/bin/xtrabackup_56 -a ! -f /usr/sbin/xtrabackup_56 -a ! -f /bin/xtrabackup_56 -a ! -f /sbin/xtrabackup_56 ];then
+		EYOU_INNOBACK="${EYOU_XTRBACK_BIN}/innobackupex"
+	[ -f ${EYOU_XTRBACK_BIN}/xtrabackup_56 ] && ln -s ${EYOU_XTRBACK_BIN}/xtrabackup_56 /usr/bin/ || {
+		echo "${EYOU_XTRBACK_BIN}/xtrabackup_56 not find file. "
+		exit 1
+		}
+	elif [ "${MYSQL_VERSION}" == "5.6" ] && [ "$DEFAULT_MYSQL_VERSION" != "${MYSQL_VERSION}" ] && [ ! -f /usr/bin/xtrabackup_56 -a ! -f /usr/sbin/xtrabackup_56 -a ! -f /bin/xtrabackup_56 -a ! -f /sbin/xtrabackup_56 ];then
+		EYOU_INNOBACK="${EYOU_XTRBACK_BIN56}/innobackupex"
+	[ -f ${EYOU_XTRBACK_BIN56}/xtrabackup_56 ] && ln -s ${EYOU_XTRBACK_BIN56}/xtrabackup_56 /usr/bin/ || {
+		echo "${EYOU_XTRBACK_BIN56}/xtrabackup_56 not find file. "
+		exit 1
+		}
+	elif [ "${MYSQL_VERSION}" == "5.1" ] && [ "$DEFAULT_MYSQL_VERSION" == "${MYSQL_VERSION}" ] && [ ! -f /usr/bin/xtrabackup_51 -a ! -f /bin/xtrabackup_51 -a ! -f /usr/sbin/xtrabackup_51 -a ! -f /sbin/xtrabackup_51 ];then
+		EYOU_INNOBACK="${EYOU_XTRBACK_BIN}/innobackupex"
+	[ -f ${EYOU_XTRBACK_BIN}/xtrabackup_51 ] && ln -s ${EYOU_XTRBACK_BIN}/xtrabackup_51 /usr/bin/ || {
+		echo "${EYOU_XTRBACK_BIN}/xtrabackup_51 not find file. "
+		exit 1
+		}
+	elif [ "${MYSQL_VERSION}" == "5.1" ] && [ "$DEFAULT_MYSQL_VERSION" != "${MYSQL_VERSION}" ] && [ ! -f /usr/bin/xtrabackup_51 -a ! -f /bin/xtrabackup_51 -a ! -f /usr/sbin/xtrabackup_51 -a ! -f /sbin/xtrabackup_51 ];then
+		EYOU_INNOBACK="${EYOU_XTRBACK_BIN51}/innobackupex"
+	[ -f ${EYOU_XTRBACK_BIN51}/xtrabackup_51 ] && ln -s ${EYOU_XTRBACK_BIN51}/xtrabackup_51 /usr/bin/ || {
+		echo "${EYOU_XTRBACK_BIN51}/xtrabackup_51 not find file. "
+		exit 1
+		}
+	elif [ "${MYSQL_VERSION}" == "5.5" ] && [ "$DEFAULT_MYSQL_VERSION" == "${MYSQL_VERSION}" ] && [ ! -f /usr/bin/xtrabackup_55 -a ! -f /bin/xtrabackup_55 -a ! -f /usr/sbin/xtrabackup_55 -a ! -f /sbin/xtrabackup_55 ];then
+		EYOU_INNOBACK="${EYOU_XTRBACK_BIN}/innobackupex"
+	[ -f ${EYOU_XTRBACK_BIN}/xtrabackup_55 ] && ln -s ${EYOU_XTRBACK_BIN}/xtrabackup_55 /usr/bin/ || {
+		echo "${EYOU_XTRBACK_BIN}/xtrabackup_55 not find file. "
+		exit 1
+		}
+	elif [ "${MYSQL_VERSION}" == "5.5" ] && [ "$DEFAULT_MYSQL_VERSION" != "${MYSQL_VERSION}" ] && [ ! -f /usr/bin/xtrabackup_55 -a ! -f /bin/xtrabackup_55 -a ! -f /usr/sbin/xtrabackup_55 -a ! -f /sbin/xtrabackup_55 ];then
+		EYOU_INNOBACK="${EYOU_XTRBACK_BIN55}/innobackupex"
+	[ -f ${EYOU_XTRBACK_BIN55}/xtrabackup_55 ] && ln -s ${EYOU_XTRBACK_BIN55}/xtrabackup_55 /usr/bin/ || {
+		echo "${EYOU_XTRBACK_BIN55}/xtrabackup_55 not find file. "
+		exit 1
+		}
+	fi
+
+	if [ -z ${INC_BAK_TIME} ] && [ "${RUN_BAK_STATUS}" != "ALL_BAK" ] ;then
+	[ -f "${EYOU_INNOBAK_DIR_NAME}/INNOBAK_${INIT_BAK_TIME}/full_bak/.${DATACONF}.ok" ] || {
+	echo "$(date +%F" "%H:%M:%S) 检测上次备份${EYOU_INNOBAK_DIR_NAME}/INNOBAK_${INIT_BAK_TIME}/full_bak，未发现规定的结束文件，判定上次备份无效，将回退，本次备份动作也将回退。" >> ${LOG_NAME}
+	rm -rf ${EYOU_INNOBAK_DIR_NAME}/INNOBAK_${INIT_BAK_TIME}/full_bak
+	wait
+	rm -rf ${EYOU_INNOBAK_DIR_NAME}/INNOBAK_${INIT_BAK_TIME}/INC_${DATE_TIME}
+	exit 1;
+	}
+	elif [ ! -z ${INC_BAK_TIME} ] && [ "${RUN_BAK_STATUS}" != "ALL_BAK" ] ;then
+	[ -f "${EYOU_INNOBAK_DIR_NAME}/INNOBAK_${INIT_BAK_TIME}/INC_${INC_BAK_TIME}/.${DATACONF}.ok" ] || {
+	echo "$(date +%F" "%H:%M:%S) 检测上次备份${EYOU_INNOBAK_DIR_NAME}/INNOBAK_${INIT_BAK_TIME}/INC_${INC_BAK_TIME}，未发现规定的结束文件，判定上次备份无效，将回退，本次备份动作也将回退。" >> ${LOG_NAME}
+	rm -rf ${EYOU_INNOBAK_DIR_NAME}/INNOBAK_${INIT_BAK_TIME}/INC_${INC_BAK_TIME}
+	wait
+	rm -rf ${EYOU_INNOBAK_DIR_NAME}/INNOBAK_${INIT_BAK_TIME}/INC_${DATE_TIME}
+	exit 1;
+	}
+	fi
+	
+	[ "${RUN_BAK_STATUS}" == "ALL_BAK" ] && {
+		[ -d "${EYOU_INNOBAK_DIR_NAME}/INNOBAK_${DATE_TIME}" ] || mkdir -p ${EYOU_INNOBAK_DIR_NAME}/INNOBAK_${DATE_TIME}/full_bak
+		echo "$(date +%F" "%H:%M:%S) 初始化全量备份 ${DATACONF} ${DATE_TIME}" >> ${LOG_NAME}
+		ALL_MYSQL_BACKUP ${EYOU_MYSQL_CONF}/${DATACONF} ${EYOU_INNOBAK_DIR_NAME}/INNOBAK_${DATE_TIME}/full_bak/${DATACONF}
+		if [ ${?} -eq 0 ];then
+		echo "INNOBAK_${DATE_TIME}_end" > ${EYOU_INNOBAK_DIR_NAME}/INNOBAK_${DATE_TIME}/full_bak/.${DATACONF}.ok
+		echo "$(date +%F" "%H:%M:%S) ${EYOU_INNOBAK_DIR_NAME}/INNOBAK_${DATE_TIME}/full_bak/${DATACONF} 备份成功。" >> ${LOG_NAME} 
+		[ -z "${exit_val}" ] && exit_val="0"
+		else
+		echo "$(date +%F" "%H:%M:%S) ${EYOU_INNOBAK_DIR_NAME}/INNOBAK_${DATE_TIME}/full_bak/${DATACONF} 备份失败,本次整个备份将回滚不生效。" >> ${LOG_NAME}
+		[ ! -z "${exit_val}" -o "${exit_val}" != "0" ] && {
+		exit_val="INNOBAK_${DATE_TIME}"
+		break;
+		}
+		fi
+	}	
+	[ "${RUN_BAK_STATUS}" == "INC_BAK" ] && {
+		[ -d "${EYOU_INNOBAK_DIR_NAME}/INNOBAK_${INIT_BAK_TIME}/INC_${DATE_TIME}" ] || mkdir -p ${EYOU_INNOBAK_DIR_NAME}/INNOBAK_${INIT_BAK_TIME}/INC_${DATE_TIME}
+		if [ -z ${INC_BAK_TIME} ];then
+		NEX_TIME="INNOBAK_${INIT_BAK_TIME}/full_bak"
+		END_MESSAGE="${EYOU_INNOBAK_DIR_NAME}/INNOBAK_${INIT_BAK_TIME}/full_bak/.${DATACONF}.ok"
+		echo "$(date +%F" "%H:%M:%S) 第一次基于全量备份的增量备份 ${DATACONF} 开始，它的父目录为 ${EYOU_INNOBAK_DIR_NAME}/INNOBAK_${INIT_BAK_TIME}/full_bak/${DATACONF} " >> ${LOG_NAME}
+		INC_MYSQL_BACKUP ${EYOU_MYSQL_CONF}/${DATACONF} ${EYOU_INNOBAK_DIR_NAME}/INNOBAK_${INIT_BAK_TIME}/full_bak/${DATACONF} ${EYOU_INNOBAK_DIR_NAME}/INNOBAK_${INIT_BAK_TIME}/INC_${DATE_TIME}/${DATACONF}
+		else
+		NEX_TIME="INC_${INC_BAK_TIME}"
+		END_MESSAGE="${EYOU_INNOBAK_DIR_NAME}/INNOBAK_${INIT_BAK_TIME}/INC_${INC_BAK_TIME}/.${DATACONF}.ok"
+		echo "$(date +%F" "%H:%M:%S) 基于上次增量备份的增量备份 ${DATACONF} 开始，它的父目录为 ${EYOU_INNOBAK_DIR_NAME}/INNOBAK_${INIT_BAK_TIME}/INC_${INC_BAK_TIME}/${DATACONF} " >> ${LOG_NAME}
+		INC_MYSQL_BACKUP ${EYOU_MYSQL_CONF}/${DATACONF} ${EYOU_INNOBAK_DIR_NAME}/INNOBAK_${INIT_BAK_TIME}/INC_${INC_BAK_TIME}/${DATACONF} ${EYOU_INNOBAK_DIR_NAME}/INNOBAK_${INIT_BAK_TIME}/INC_${DATE_TIME}/${DATACONF}
+		fi
+		if [ ${?} -eq 0 ];then
+		sed -i 's/_end//g' ${END_MESSAGE}
+		echo "${NEX_TIME}_end" > ${EYOU_INNOBAK_DIR_NAME}/INNOBAK_${INIT_BAK_TIME}/INC_${DATE_TIME}/.${DATACONF}.ok
+		echo "$(date +%F" "%H:%M:%S) ${EYOU_INNOBAK_DIR_NAME}/INNOBAK_${INIT_BAK_TIME}/INC_${DATE_TIME}/${DATACONF} 备份成功。${INIT_BAK_TIME}" >> ${LOG_NAME} 
+		[ -z "${exit_val}" ] && exit_val="0"
+		else
+		echo "$(date +%F" "%H:%M:%S) ${EYOU_INNOBAK_DIR_NAME}/INNOBAK_${INIT_BAK_TIME}/INC_${DATE_TIME}/${DATACONF} 备份失败,本次整个备份将回滚不生效。" >> ${LOG_NAME}
+		[ -z "${exit_val}" -o "${exit_val}" != "0" ] && exit_val="INNOBAK_${INIT_BAK_TIME}/INC_${DATE_TIME}"
+		fi
+	}
+	
+done
+[ -z "${exit_val}" -o "${exit_val}" == "0" ] || rm -rf ${EYOU_INNOBAK_DIR_NAME}/${exit_val}
+[ -z "${RM_BAK_STATUS}" ] || rm -rf ${EYOU_INNOBAK_DIR_NAME}/${RM_BAK_STATUS}
+
+}
+
+SHOW_BACKUP_TIME () {
+FULL_BACKUP_DIR_NAME=$(find ${EYOU_INNOBAK_DIR_NAME} -type d -name "INNOBAK_[0-9]*"|sort)
+	[ -z "${FULL_BACKUP_DIR_NAME}" ] && {
+		echo "未发现任何备份" 
+			} || {
+	for FULL_BACKUP_DIR in ${FULL_BACKUP_DIR_NAME}
+		do
+		ALL_TIME_NAME=${FULL_BACKUP_DIR#*_}
+		for i in $(echo ${MYSQL_DATABASE_CONF}|sed 's/;/ /g')
+			do
+			DATANAME="$(echo $i|cut -d ':' -f1)"
+			DATACONF="$(echo $i|cut -d ':' -f2)"
+			MYSQL_VERSION_CONF="$(echo $i|cut -d ':' -f3)"
+			if [ "${DATACONF}" == "${2}" ] || [ -z ${2} ];then
+			[ -f "${FULL_BACKUP_DIR}/full_bak/.${DATACONF}.ok" ] && {
+			echo -e "基于 \033[0;32m${DATACONF}\033[0m 配置 备份 \033[0;36m${DATANAME}\033[0m 数据库的内容如下: "
+			echo $(date -d "1970-01-01 UTC ${ALL_TIME_NAME} seconds" +%F" "%H:%M:%S" "%w) ${DATANAME} ${FULL_BACKUP_DIR}/full_bak/${DATACONF} full bak repair_id: [ ${FULL_BACKUP_DIR#*INNOBACKUPEX/} ]
+			}
+			[ "${1}" != "repair" ] && SHOW_ONE_BACKUP_TIME ${FULL_BACKUP_DIR} ${ALL_TIME_NAME} ${DATACONF}
+			echo
+			fi
+		done
+	done
+	}
+}
+SHOW_ONE_BACKUP_TIME () {
+ONE_ALL_BACKUP_DIR_NAME="${1}"
+ROOT_TIME_NAME="INNOBAK_${2}"
+DATACONF_NAME="${3}"
+INC_BACKUP_DIR_NAME=$(find ${EYOU_INNOBAK_DIR_NAME}/${ROOT_TIME_NAME} -type d -name "INC_[0-9]*"|sort)
+	[ -z "${INC_BACKUP_DIR_NAME}" ] || {
+	for INC_BACKUP_DIR in ${INC_BACKUP_DIR_NAME}
+		do
+		INC_TIME_NAME=${INC_BACKUP_DIR#*INC_}
+		[ -f "${INC_BACKUP_DIR}/.${DATACONF_NAME}.ok" ] && {
+		echo $(date -d "1970-01-01 UTC ${INC_TIME_NAME} seconds" +%F" "%H:%M:%S" "%w) ${INC_BACKUP_DIR}/${DATACONF} inc bak root is:  ${EYOU_INNOBAK_DIR_NAME}/$(cat ${EYOU_INNOBAK_DIR_NAME}/${ROOT_TIME_NAME}/INC_${INC_TIME_NAME}/.*.ok |sed -n 1p|sed 's/_end//g')/${DATACONF}
+		}
+	done
+	}
+}
+
+REPAIR_BACKUP_MYSQL () {
+REPAIR_MY_CONF=${1}
+REPAIR_MY_TIME=${2}
+REPAIR_POST_FILE="xtrabackup_checkpoints"
+
+[ -z "${REPAIR_MY_CONF}" ] && {
+	echo "请从以上全量备份中选择要恢复的数据库"
+	exit 1
+	}
+
+[ -z "${REPAIR_MY_TIME}" ] && {
+	echo "请从以上全量备份中选择要恢复的 repair_id "
+	exit 1
+	}
+
+	if [ -f "${EYOU_MYSQL_CONF}/${REPAIR_MY_CONF}" ] && [ -d "${EYOU_INNOBAK_DIR_NAME}/${REPAIR_MY_TIME}/full_bak/${REPAIR_MY_CONF}" ];then
+	REPAIR_ALL_MY_TIME=$(find ${EYOU_INNOBAK_DIR_NAME}/${REPAIR_MY_TIME}/full_bak -type f -name .${REPAIR_MY_CONF}.ok -exec grep "${REPAIR_MY_TIME}" {} \; -print)
+	ALL_BACKUP_DIR=$(echo ${REPAIR_ALL_MY_TIME%/.${REPAIR_MY_CONF}.ok}|cut -d ' ' -f1)
+		EYOU_MYSQL_VERSION_ONE=""
+		if [ "${DEFAULT_MYSQL_VERSION}" != "${MYSQL_VERSION}" ] && [ "${REPAIR_MY_CONF}" == "my.cnf" ];then
+		EYOU_MYSQL_VERSION_ONE="$(echo ${MYSQL_VERSION}|sed 's/.//g')"
+		elif [ "${DEFAULT_MYSQL_VERSION}" != "${MYSQL_INDEX_VERSION}" ] && [ "${REPAIR_MY_CONF}" == "my_index.cnf" ];then
+		EYOU_MYSQL_VERSION_ONE="$(echo ${MYSQL_INDEX_VERSION}|sed 's/.//g')"
+		elif [ "${DEFAULT_MYSQL_VERSION}" != "${MYSQL_LOG_VERSION}" ] && [ "${REPAIR_MY_CONF}" == "my_log.cnf" ];then
+		EYOU_MYSQL_VERSION_ONE="$(echo ${MYSQL_LOG_VERSION}|sed 's/.//g')"
+		fi
+		EYOU_INNOBACK="$(eval \${EYOU_XTRBACK_BIN${EYOU_MYSQL_VERSION_ONE}}/innobackupex)"
+		if [ -z "$(echo ${ALL_BACKUP_DIR}|grep '_end$')" ];then
+		echo "恢复全备份中..."
+		ALL_REPAIR_TYPE="$(awk '{if($1 == "backup_type") {print $3}}' ${EYOU_INNOBAK_DIR_NAME}/${REPAIR_MY_TIME}/full_bak/${REPAIR_MY_CONF}/${REPAIR_POST_FILE})"
+		ALL_REPAIR_POST="$(awk '{if($1 == "last_lsn") {print $3}}' ${EYOU_INNOBAK_DIR_NAME}/${REPAIR_MY_TIME}/full_bak/${REPAIR_MY_CONF}/${REPAIR_POST_FILE})"
+		MYSQL_DIR="$(awk '{if($1=="datadir") {print $3}}' ${EYOU_MYSQL_CONF}/${REPAIR_MY_CONF})"
+		ALL_MYSQL_APPLY_LOG ${EYOU_MYSQL_CONF}/${REPAIR_MY_CONF} ${EYOU_INNOBAK_DIR_NAME}/${REPAIR_MY_TIME}/full_bak/${REPAIR_MY_CONF} ${EYOU_INNOBAK_DIR_NAME}/${REPAIR_MY_CONF}
+		[ $? -eq 0 ] && repair_exit="0" || repair_exit="1"
+		else
+		echo "恢复全备份中..."
+		MYSQL_COPY_BAK ${EYOU_MYSQL_CONF}/${REPAIR_MY_CONF} ${EYOU_INNOBAK_DIR_NAME}/${REPAIR_MY_TIME}/full_bak/${REPAIR_MY_CONF} ${EYOU_INNOBAK_DIR_NAME}/${REPAIR_MY_CONF}
+		[ $? -eq 0 ] && {
+		chown -R ${MYSQL_DIR_USER} ${MYSQL_DIR}
+		echo "只有全备，数据库恢复完成～,请检测数据文件权限后，启动数据库即可。"
+		exit 0
+			} || {
+		echo "只有全备，数据库恢复失败～,请查看 ${EYOU_INNOBAK_DIR_NAME}/${REPAIR_MY_CONF}.repair.log 日志进行排错。"
+		exit 1
+			}
+		fi
+	else
+	echo "请确认 要恢复的数据库存在 和恢复的repair_id 为正常。"
+	exit 1
+	fi
+
+	OLD_BACKUP_DIR=""
+	REPAIR_MY_TIME_NAME=${REPAIR_MY_TIME}
+	while [ -z "$(echo ${OLD_BACKUP_DIR}|grep '_end$')" ];do
+	if [ ${repair_exit} -eq "0" ];then
+	REPAIR_INC_MY_TIME=$(find ${EYOU_INNOBAK_DIR_NAME}/${REPAIR_MY_TIME}/INC* -type f -name .${REPAIR_MY_CONF}.ok -exec grep "${REPAIR_MY_TIME_NAME}" {} \; -print)
+	OLD_BACKUP_DIR=$(echo ${REPAIR_INC_MY_TIME%/.${REPAIR_MY_CONF}.ok}|cut -d ' ' -f1)
+	INC_BACKUP_DIR=$(echo ${REPAIR_INC_MY_TIME%/.${REPAIR_MY_CONF}.ok}|cut -d ' ' -f2)
+		INC_REPAIR_FROM_POST="$(awk '{if($1 == "from_lsn") {print $3}}' ${INC_BACKUP_DIR}/${REPAIR_MY_CONF}/${REPAIR_POST_FILE}) "
+		echo "将增量备份 ${INC_BACKUP_DIR}  恢复至全备份中..."
+		if [ -z "$(echo ${OLD_BACKUP_DIR}|grep '_end$')" ] && [ "${INC_REPAIR_FROM_POST}" -ge "${ALL_REPAIR_POST}" ] ;then
+		INC_MYSQL_APPLY_LOG  ${EYOU_MYSQL_CONF}/${REPAIR_MY_CONF} ${EYOU_INNOBAK_DIR_NAME}/${REPAIR_MY_TIME}/full_bak/${REPAIR_MY_CONF} ${INC_BACKUP_DIR}/${REPAIR_MY_CONF} ${EYOU_INNOBAK_DIR_NAME}/${REPAIR_MY_CONF}
+		[ $? -eq 0 ] && repair_exit="0" || repair_exit="1"
+		REPAIR_MY_TIME_NAME=${INC_BACKUP_DIR#${EYOU_INNOBAK_DIR_NAME}/${REPAIR_MY_TIME}/}
+		elif [ ! -z "$(echo ${OLD_BACKUP_DIR}|grep '_end$')" ] && [ "${INC_REPAIR_FROM_POST}" -ge "${ALL_REPAIR_POST}" ] ;then
+		ENDINC_MYSQL_APPLY_LOG ${EYOU_MYSQL_CONF}/${REPAIR_MY_CONF} ${EYOU_INNOBAK_DIR_NAME}/${REPAIR_MY_TIME}/full_bak/${REPAIR_MY_CONF} ${INC_BACKUP_DIR}/${REPAIR_MY_CONF} ${EYOU_INNOBAK_DIR_NAME}/${REPAIR_MY_CONF}
+		[ $? -eq 0 ] && repair_exit="0" || repair_exit="1"
+		elif [ -z "$(echo ${OLD_BACKUP_DIR}|grep '_end$')" ] && [ "${INC_REPAIR_FROM_POST}" -lt "${ALL_REPAIR_POST}" ] ;then
+		echo "检测到增量备份的from 小于 全备的last 可能已经将此次增量恢复，跳过..."
+		REPAIR_MY_TIME_NAME=${INC_BACKUP_DIR#${EYOU_INNOBAK_DIR_NAME}/${REPAIR_MY_TIME}/}
+		repair_exit="0"
+		elif [ ! -z "$(echo ${OLD_BACKUP_DIR}|grep '_end$')" ] && [ "${INC_REPAIR_FROM_POST}" -lt "${ALL_REPAIR_POST}" ] ;then
+		echo "检测到增量备份的from 小于 全备的last 可能已经将此次增量恢复，跳过..."
+		repair_exit="0"
+		fi
+	elif [ ${repair_exit} -ne "0" ];then
+	echo "备份恢复失败，请从 ${EYOU_INNOBAK_DIR_NAME}/${REPAIR_MY_CONF}_${DATE_TIME}.repair.log 日志中排查问题。"
+	exit 1
+	fi
+	done
+	MYSQL_COPY_BAK ${EYOU_MYSQL_CONF}/${REPAIR_MY_CONF} ${EYOU_INNOBAK_DIR_NAME}/${REPAIR_MY_TIME}/full_bak/${REPAIR_MY_CONF} ${EYOU_INNOBAK_DIR_NAME}/${REPAIR_MY_CONF}
+	if [ ${?} -eq "0" ] ;then
+		chown -R ${MYSQL_DIR_USER} ${MYSQL_DIR}
+		echo "数据库恢复完成～,请检测数据文件权限后，启动数据库即可。"
+	else
+		echo "数据库恢复失败～,请查看 ${EYOU_INNOBAK_DIR_NAME}/${REPAIR_MY_CONF}.repair.log 日志进行排错。"
+		exit 1
+	fi
+}
+
+REPAIR_CHECK_MYSQL () {
+REPAIR_MY_CONF=${1}
+if [[ "${MYSQL_DATABASE_CONF}" =~ ":${REPAIR_MY_CONF}:" ]] && [ ! -z "${REPAIR_MY_CONF}" ];then
+	:
+elif [ -z "${REPAIR_MY_CONF}" ];then
+	echo "请从以上全量备份中选择要恢复的数据库"
+	exit 1
+else
+	echo "请输入正确的数据库名称。"
+	exit 1
+fi
+
+${EYOU_DIR}/opt/mysql/bin/mysqladmin --defaults-file="${EYOU_MYSQL_CONF}/${REPAIR_MY_CONF}" ping >/dev/null 2>&1
+[ "${?}" -eq "0" ] && {
+	echo "检测到需要恢复的mysql 正在运行，请停止后再进行恢复操作。"
+	exit 1
+	}
+MYSQL_DATA_DIR="$(awk '{if($1=="datadir") {print $3}}' ${EYOU_MYSQL_CONF}/${REPAIR_MY_CONF})"
+
+[ -d "${MYSQL_DATA_DIR}" ] || {
+	mkdir ${MYSQL_DATA_DIR}
+	chown ${MYSQL_DIR_USER} ${MYSQL_DATA_DIR}
+	}
+
+[ -z "$(find ${MYSQL_DATA_DIR} -type f)" ] || {
+	echo "检测到需要恢复的mysql 目录 ${MYSQL_DATA_DIR} 非空，请将目录挪走后 再进行恢复操作。"
+	exit 1
+	}
+
+}
+
+
+case $1 in
+	--backup|-bak)
+		INNOBACKUP_BAKCUP
+	;;
+	--show|-p)
+		SHOW_BACKUP_TIME show ${2}
+	;;
+	--repair|-r)
+		SHOW_BACKUP_TIME repair ${2}
+		REPAIR_CHECK_MYSQL ${2}
+		REPAIR_BACKUP_MYSQL ${2} ${3}
+	;;
+	*)
+		echo "$0
+			--backup|-bak	backup mysql database
+			--show|-p	show backup message
+			--repair|-r	repair mysql database"
+	;;
+esac
+		

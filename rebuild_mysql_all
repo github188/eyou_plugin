@@ -1,0 +1,343 @@
+#!/usr/bin/env bash
+# by : liguopeng@eyou.net	165.
+
+EYOU_DIR="/usr/local/eyou/mail"
+MYSQL="$EYOU_DIR/opt/mysql/bin/mysql"
+EYOU_ETC="$EYOU_DIR/etc/eyou_mail.ini"
+#MYSQL_HOST="127.0.0.1"
+MYSQL_HOST=""
+#EYOU_MAIL_MYSQL="eyou_mail"
+EYOU_MAIL_MYSQL="$(grep '^db_name' ${EYOU_ETC}|cut -d '=' -f2|cut -d '"' -f2)"
+#EYOU_MAIL_PORT="3306"
+EYOU_MAIL_PORT="$(grep '^db_mysql_sock' ${EYOU_ETC}|cut -d '=' -f2|cut -d '"' -f2)"
+#EYOU_MAIL_INDEX_MYSQL="eyou_mail_index"
+EYOU_MAIL_INDEX_MYSQL="$(grep '^dbumi_mysql_dsn' ${EYOU_ETC}|cut -d '=' -f4|cut -d '"' -f1)"
+#EYOU_MAIL_INDEX_PORT="3316"
+EYOU_MAIL_INDEX_PORT="$(grep '^dbumi_mysql_dsn' ${EYOU_ETC}|cut -d '=' -f3|cut -d ';' -f1)"
+#EYOU_MAIL_LOG_MYSQL="eyou_mail_log"
+EYOU_MAIL_LOG_MYSQL="$(grep '^dblog_name' ${EYOU_ETC}|cut -d '=' -f2|cut -d '"' -f2)"
+#EYOU_MAIL_LOG_PORT="3326"
+EYOU_MAIL_LOG_PORT="$(grep '^dblog_mysql_sock' ${EYOU_ETC}|cut -d '=' -f2|cut -d '"' -f2)"
+DATE_TIME="$(date +%s)"
+UPDATE_LOG="/usr/local/eyou/mail/log/update_mysql.$(date +%F).log"
+#MYSQL_EYOU_MAIL="${MYSQL} -h ${MYSQL_HOST} -S ${EYOU_MAIL_PORT} -D ${EYOU_MAIL_MYSQL} -s -e"
+#MYSQL_EYOU_INDEX_MAIL="${MYSQL} -h ${MYSQL_HOST} -S ${EYOU_MAIL_INDEX_PORT} -D ${EYOU_MAIL_INDEX_MYSQL} -s -e"
+#MYSQL_EYOU_LOG_MAIL="${MYSQL} -h ${MYSQL_HOST} -S ${EYOU_MAIL_LOG_PORT} -D ${EYOU_MAIL_LOG_MYSQL} -s -e"
+MYSQL_EYOU_MAIL="${MYSQL} -S ${EYOU_MAIL_PORT} -D ${EYOU_MAIL_MYSQL} -s -e"
+MYSQL_EYOU_INDEX_MAIL="${MYSQL} -S ${EYOU_MAIL_INDEX_PORT} -D ${EYOU_MAIL_INDEX_MYSQL} -s -e"
+MYSQL_EYOU_LOG_MAIL="${MYSQL} -S ${EYOU_MAIL_LOG_PORT} -D ${EYOU_MAIL_LOG_MYSQL} -s -e"
+SEQUENCE_ACCT_INT_TABLE="sequence_acct_int"
+SEQUENCE_INT_TABLE="sequence_int"
+RUN_TMP_DIR="/tmp/.eyou_check_mysql"
+ECHO_SKIP="\033[0;33mSKIP\033[0m"
+ECHO_WARING="\033[0;31mWARING\033[0m"
+ECHO_FAIL="\033[0;41mERROR\033[0m"
+ECHO_OK="\033[0;32mOK\033[0m"
+
+build_help () {
+#-u -s
+build_help_type="$1"
+[ "${build_help_type}" == "user" ] && {
+#	folder_id				'=>'	max[user_folder_custom_0.folder_id]-1					用户自定义文件夹ID
+ARRAY_SEQUENCE_ACCT_INT="
+	contacts_id				'=>'	max[user_contacts_key.contacts_id]-1					用户个人通讯录ID
+	contacts_group_id			'=>'	max[user_contacts_group.contacts_group_id]-1				用户个人通讯录组ID
+	folder_id				'=>'	max[user_folder_stat_0.folder_id]-1					用户自定义文件夹ID
+	mail_id					'=>'	max[user_mail_index_0.mail_id]-1					用户邮件ID
+	plugin_user_bookmark_url_id		'=>'	max[plugin_user_bookmark_url.plugin_user_bookmark_url_id]-1		用户移动书签ID
+	plugin_user_notebook_index_id		'=>'	max[plugin_user_notebook_index.plugin_user_notebook_index_id]-1		用户个人记事本ID
+	plugin_user_notebook_category_id	'=>'	max[plugin_user_notebook_category.plugin_user_notebook_category_id]-1	用户个人记事本分组ID
+	plugin_user_notebook_reminder_id	'=>'	max[plugin_user_calendar_index.plugin_user_notebook_index_id]-1		用户个人日历提醒ID
+	plugin_user_storage_index_id		'=>'	max[plugin_user_storage_index.plugin_user_storage_index_id]-1		用户网络存储ID	
+	plugin_user_storage_folder_id		'=>'	max[plugin_user_storage_folder.plugin_user_storage_folder_id]-1		用户网络存储文件夹ID
+	pop_acct_id				'=>'	max[user_pop_acct.pop_acct_id]-1					用户设置其他pop账户ID
+	white_list_id				'=>'	max[user_white_list.white_list_id]-1					用户添加白名单ID
+	black_list_id				'=>'	max[user_black_list.black_list_id]-1					用户添加黑名单ID
+	filter_id				'=>'	max[user_filter.filter_id]-1						用户添加过滤器ID
+	signature_id				'=>'	max[user_signature.signature_id]-1					用户添加签名档ID
+	forwarding_id				'=>'	max[user_forwarding.forwarding_id]-1					用户添加自动转寄ID
+	auto_reply_black_list_id		'=>'	max[user_auto_reply_black_list.auto_reply_black_list_id]-1		用户自动回复黑名单	
+	auto_reply_white_list_id		'=>'	max[user_auto_reply_white_list.auto_reply_white_list_id]-1		用户自动回复白名单"
+	echo -e "${ARRAY_SEQUENCE_ACCT_INT}"
+}
+[ "${build_help_type}" == "system" ] && {
+ARRAY_SEQUENCE_INT="
+	acct_id					'=>'	max[acct_key.acct_id]-1			用户ID
+	domain_id				'=>'	max[domain_key.domain_id]-1		域ID
+	member_iteration_queue_id								[未知,貌似是队列]
+	notice_id				'=>'	max[user_notice_index.notice_id]	通知索引ID
+	plugin_id										[未知,貌似是插件]
+	skin_id					'=>'	max[theme_skin.skin_id]			皮肤ID
+	theme_id				'=>'	max[theme.theme_id]			主题ID"
+
+ARRAY_SEQUENCE_ACCT_BIGINT="
+	calendar_reminder_queue_id	
+	pop_acct_result_id	
+
+"
+	echo -e "${ARRAY_SEQUENCE_INT}"
+}
+}
+
+#sequence_id 对应的table 变量
+
+set_sequence_name () {
+#用户相关
+contacts_id="user_contacts_key"
+contacts_group_id="user_contacts_group"
+#folder_id="user_folder_custom_0"
+folder_id="user_folder_stat_0"
+mail_id="user_mail_index_0"
+plugin_user_bookmark_url_id="plugin_user_bookmark_url"
+plugin_user_notebook_index_id="plugin_user_notebook_index"
+plugin_user_notebook_category_id="plugin_user_notebook_category"
+plugin_user_notebook_reminder_id="plugin_user_calendar_index"
+plugin_user_storage_index_id="plugin_user_storage_index"
+plugin_user_storage_folder_id="plugin_user_storage_folder"
+pop_acct_id="user_pop_acct"
+white_list_id="user_white_list"
+black_list_id="user_black_list"
+filter_id="user_filter"
+signature_id="user_signature"
+forwarding_id="user_forwarding"
+auto_reply_black_list_id="user_auto_reply_black_list"
+auto_reply_white_list_id="user_auto_reply_white_list"
+
+#系统相关
+acct_id="acct_key"
+domain_id="domain_key"
+member_iteration_queue_id=""
+skin_id="theme_skin"
+theme_id="theme"
+notice_id="user_notice_index"
+plugin_id=""
+
+
+}
+
+#获取用户邮件地址,用户UID
+get_user_id () {
+
+	user_name_number="${1}"
+	domain_name_number="${2}"
+	[ -z ${user_name_number} ] && {
+	${MYSQL_EYOU_MAIL} "select a.acct_name,b.domain_name,a.acct_id from acct_key a,domain_key b,user_basic c where a.acct_type = '0' and b.domain_type = '0' and a.acct_id = c.acct_id and a.domain_id = b.domain_id;"
+	} || {
+	${MYSQL_EYOU_MAIL} "select a.acct_name,b.domain_name,a.acct_id from acct_key a,domain_key b,user_basic c where a.acct_type = '0' and b.domain_type = '0' and a.acct_id = c.acct_id and a.domain_id = b.domain_id and a.acct_name = '${user_name_number}' and b.domain_name = '${domain_name_number}';"
+	}
+}
+
+#获取sequence_id
+get_sequence_int () {
+	export get_type=${1}
+	export sequence_table=${2}
+	[ ${sequence_table} == "${SEQUENCE_ACCT_INT_TABLE}" ] && export get_sequence_id=$( ${get_mysql_type} "select sequence_id from ${sequence_table} where acct_id = '${get_uid}' and sequence_name = '${get_type}';")
+	[ ${sequence_table} == "${SEQUENCE_INT_TABLE}"  ] && export get_sequence_id=$( ${get_mysql_type} "select sequence_id from ${sequence_table} where sequence_name = '${get_type}';")
+}
+
+
+#获取当前类型的sequence_name
+get_user_mail_sequence_type () {
+	export sequence_table=$1
+	[ ${sequence_table} == "${SEQUENCE_ACCT_INT_TABLE}" ] && $MYSQL_EYOU_MAIL "select sequence_name from ${sequence_table} where acct_id = '${get_uid}';"
+	[ ${sequence_table} == "${SEQUENCE_INT_TABLE}"  ] && $MYSQL_EYOU_MAIL "select sequence_name from ${sequence_table};"
+}
+
+
+#获取当前用户类型sequence_id的最大值
+get_user_mail_sequence_table () {
+	export eyou_mail_sequence_name=${1}
+	export eyou_mail_sequence_table=${2}
+	[ -z "${eyou_mail_sequence_table}" ] || {
+	[ ${sequence_table} == "${SEQUENCE_ACCT_INT_TABLE}" ] && ${get_mysql_type} "select max(${eyou_mail_sequence_name}) from ${eyou_mail_sequence_table} where acct_id = '${get_uid}'"
+	[ ${sequence_table} == "${SEQUENCE_INT_TABLE}" ] && ${get_mysql_type} "select max(${eyou_mail_sequence_name}) from ${eyou_mail_sequence_table}"
+	}
+}
+get_user_mail_sequence_max () {
+	max_exit_val=0
+	if [ "${get_type}" == "folder_id" ] || [ "${get_type}" == "mail_id" ];then
+		export get_mysql_type=${MYSQL_EYOU_INDEX_MAIL}
+	elif [ "${get_type}" == "" ] || [ "${get_type}" == "NULL" ];then
+		max_exit_val=1
+	elif [ "${get_type}" == "plugin_user_notebook_reminder_id" ] || [ "${get_type}" == "plugin_user_notebook_index_id" ];then
+		max_exit_val=1
+		local skip_number_size=$(echo 151-$(echo ${get_user} $(eval echo \${${get_type}}).${get_type} 该类型增长有冲突,无法确定 暂时跳过 |wc -c)+5|bc)
+		echo -e ${get_user} $(eval echo "\${${get_type}}")."${get_type}" 该类型增长有冲突,无法确定 暂时跳过 " $(printf "%${skip_number_size}s" [${ECHO_SKIP}].)"
+#		echo lgptest
+#		local get_type="plugin_user_notebook_index_id"
+#		local plugin_user_notebook_index_id="plugin_user_calendar_index"
+	elif [ "${get_type}" == "member_iteration_queue_id" ] || [ "${get_type}" == "skin_id" ] || [ "${get_type}" == "theme_id" ] || [ "${get_type}" == "plugin_id" ];then
+		max_exit_val=1
+		local skip_number_size=$(echo 131-$(echo $(eval echo "\${${get_type}}")."${get_type}" 该类型暂不提供,暂时跳过|wc -c)+5|bc)
+		echo -e $(eval echo "\${${get_type}}")."${get_type}" 该类型暂不提供,暂时跳过" $(printf "%${skip_number_size}s" [${ECHO_SKIP}].)"
+	else
+		export get_mysql_type=${MYSQL_EYOU_MAIL}
+	fi
+	[ "${max_exit_val}" == "0" ] && {
+	eval export max_sequenct_id=$(eval get_user_mail_sequence_table ${get_type} "\${${get_type}}")
+	}
+	[ "${max_sequenct_id}" == "NULL" ] && max_exit_val=1
+}
+
+check_sequence_id () {
+	check_val="0"
+	[ "${max_exit_val}" == "0" ] && {
+	export check_sequence_number=$(echo ${max_sequenct_id}-${get_sequence_id}|bc)
+	if [ "${check_sequence_number}" -eq "1" ];then
+		local ok_number_size=$(echo 120-$(echo ${get_user} $(eval echo "\${${get_type}}")."${get_type}" check is|wc -c)+5|bc)
+		echo -e ${get_user} $(eval echo "\${${get_type}}").${get_type} check is "$(printf "%${ok_number_size}s" [${ECHO_OK}].)"
+		check_val="0"
+	elif [ "${check_sequence_number}" -lt "1" ];then
+		local waring_number_size=$(echo 120-$(echo ${get_user} $(eval echo "\${${get_type}}").${get_type} check is|wc -c)+5|bc )
+		echo  -e ${get_user} $(eval echo "\${${get_type}}").${get_type} check is "$(printf "%${waring_number_size}s" [${ECHO_WARING}].)"
+		eval echo "\${${get_type}}".${get_type} ${max_sequenct_id}
+		echo $SEQUENCE_ACCT_INT_TABLE.${get_type} ${get_sequence_id}
+		check_val="1"
+	else
+		local fail_number_size=$(echo 120-$(echo ${get_user} $(eval echo "\${${get_type}}").${get_type} check is|wc -c)+5|bc)
+		echo -e ${get_user} $(eval echo "\${${get_type}}").${get_type} check is "$(printf "%${fail_number_size}s" [${ECHO_FAIL}].)"
+		eval echo "\${${get_type}}".${get_type} ${max_sequenct_id}
+		echo $SEQUENCE_ACCT_INT_TABLE.${get_type} ${get_sequence_id}
+		check_val="2"
+	fi
+	}
+}
+
+#循环各个sequence类型,以便获取对应值
+get_for_user_sequence_int () {
+	sequence_acct_int_table=${1}
+	sequence_rebuild=${2}
+	for i in $(get_user_mail_sequence_type ${sequence_acct_int_table})
+		do
+		export get_sequence=${i}
+		export get_mysql_type=${MYSQL_EYOU_MAIL}
+		get_sequence_int ${get_sequence} ${sequence_acct_int_table}
+		set_sequence_name
+		get_user_mail_sequence_max
+		check_sequence_id
+		[ "${sequence_rebuild}" == "user_rebuild" ] && rebuild_user_sequence_int
+		[ "${sequence_rebuild}" == "sys_rebuild" ] && rebuild_system_sequence
+	done
+}
+
+
+check_user_sequence () {
+	[ "${1}" == "rebuild" ] && {
+	user_name=""
+	domain_name=""
+	rebuild_pro="rebuild"
+	} || {
+	user_name="$(echo $1|cut -d '@' -f1)"
+	domain_name="$(echo $1|cut -d '@' -f2)"
+	rebuild_pro="check"
+	}
+
+	[ "${2}" == "rebuild" ] && rebuild_pro="rebuild"
+	get_user_id ${user_name} ${domain_name}|while read line
+		do
+		export get_user=$(echo ${line}|awk '{print $1"@"$2}')
+		export get_uid=$(echo ${line}|awk '{print $3}')
+		[ "${rebuild_pro}" == "rebuild" ] && get_for_user_sequence_int ${SEQUENCE_ACCT_INT_TABLE} user_rebuild
+		[ "${rebuild_pro}" == "rebuild" ] || get_for_user_sequence_int ${SEQUENCE_ACCT_INT_TABLE}
+	done
+}
+
+
+rebuild_user_sequence_int () {
+	[ "${check_val}" -eq "2" ] && {
+	sequence_id_number=$(echo ${max_sequenct_id}-1|bc)
+	echo "${MYSQL_EYOU_MAIL} \"update ${SEQUENCE_ACCT_INT_TABLE} set sequence_id = '${sequence_id_number}' where acct_id = '${get_uid}' and sequence_name = '${get_type}';\"" >> $UPDATE_LOG
+	}
+}
+
+rebuild_system_sequence () {
+	[ "${check_val}" -eq "2" ] && {
+	sequence_id_number=$(echo ${max_sequenct_id}-1|bc)
+	echo "${MYSQL_EYOU_MAIL} \"update ${SEQUENCE_INT_TABLE} set sequence_id = '${sequence_id_number}' where sequence_name = '${get_type}';\"" >> $UPDATE_LOG
+	}
+
+}
+
+
+case $1 in
+	-u)
+		case $2 in
+			-c)
+			check_user_sequence $3
+			;;
+			-r)
+			builde_id=$(echo $RANDOM*99999%1235|bc)
+			echo "#============== $(date +%s) ==================" >> $UPDATE_LOG
+			echo "#	mysql builed start build_id:${builde_id}	" >> $UPDATE_LOG
+			echo "		" >> $UPDATE_LOG
+			check_user_sequence $3 rebuild
+			echo "		" >> $UPDATE_LOG
+			echo "		" >> $UPDATE_LOG
+			echo "#	mysql buled end build_id:${builde_id}	" >> $UPDATE_LOG
+			echo "修复的sql语句 放入 $UPDATE_LOG 文件中"
+			;;
+			-h)
+			build_help user
+			;;
+			*)
+			echo "
+				$0 $1
+					$1 -c user@domain 进行用户类检查 (不加用户则所有)
+					$1 -r 将用户类修复sql存放在 $UPDATE_LOG 文件中
+					$1 -h	查看用户类帮助
+			"
+		esac
+	
+	;;
+	-s)
+		case $2 in
+			-c)
+			get_for_user_sequence_int ${SEQUENCE_INT_TABLE}
+			wait
+			;;
+			-r)
+			get_for_user_sequence_int ${SEQUENCE_INT_TABLE} sys_rebuild
+			wait
+			;;
+			-h)
+			build_help system
+			;;
+			*)
+			echo "
+				$0 $1
+					$1 -c	进行系统类检查
+					$1 -r	直接进行系统类修复
+					$1 -h	查看系统类帮助
+			"
+		esac
+	;;
+	-a)
+		case $2 in
+			-c)
+			check_user_sequence $3
+			get_for_user_sequence_int ${SEQUENCE_INT_TABLE}
+			;;
+			*)
+			echo "
+				$0 $1
+					$1 -c	进行系统类检查
+			"
+		esac
+	;;
+			
+			
+	*)
+	echo "
+	$0
+		-u -c	check user
+		-u -r 	rebuild	user sql导入文件
+		-u -h	help user
+
+		-s -c	check system
+		-s -r	rebuild system
+		-s -h	help system
+	
+		-a -c	check all
+	"
+		
+esac
