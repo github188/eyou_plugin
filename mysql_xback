@@ -30,7 +30,7 @@ DEL_Merge_Hours="1"
 
 
 #指定备份文件路径
-INNOBAK_DIR="/data1"
+INNOBAK_DIR="/data"
 
 #指定mysql目录的权限
 MYSQL_DIR_USER="eyou:eyou"
