@@ -526,6 +526,7 @@ MYSQL_DATA_DIR="$(awk '{if($1=="datadir") {print $3}}' ${EYOU_MYSQL_CONF}/${REPA
 
 CHECK_DISK_SIZE () {
 
+[ -z "${check_disk_size_number}" ] && {
 CHECK_DIR="$(cd ${EYOU_INNOBAK_DIR_NAME};pwd -P)"
 for DISK_SAN_1 in $(mount -l |awk '{print $3}');do [[ "${CHECK_DIR}" =~ "${DISK_SAN_1}/" ]] && CHECK_DISK_DIR_NAME_MOUNT="${DISK_SAN_1}";done
 [ -z "${CHECK_DISK_DIR_NAME_MOUNT}" ] && {
@@ -563,6 +564,8 @@ REPAIR_MYSQL_SIZE=$(find ${3} -type d -name ${2} -exec du -sk {} \;|awk 'BEGIN{n
 	exit 2049
 	}
 fi
+check_disk_size_number=1
+	}
 
 
 
