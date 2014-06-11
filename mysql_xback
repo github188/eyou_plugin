@@ -177,7 +177,7 @@ MYSQL_VERSION=${1}
 		exit 1
 		}
 	[ -f ${EYOU_XTRBACK_BIN}/xtrabackup ] && {
-		unlink /usr/bin/xtrabackup;
+		unlink /usr/bin/xtrabackup >/dev/null 2>&1;
 		ln -s ${EYOU_XTRBACK_BIN}/xtrabackup /usr/bin/ 
 		}|| {
 		echo "${EYOU_XTRBACK_BIN}/xtrabackup not find file. "
@@ -193,7 +193,7 @@ MYSQL_VERSION=${1}
 		exit 1
 		}
 	[ -f ${EYOU_XTRBACK_BIN56}/xtrabackup ] && {
-		unlink /usr/bin/xtrabackup;
+		unlink /usr/bin/xtrabackup >/dev/null 2>&1;
 		ln -s ${EYOU_XTRBACK_BIN56}/xtrabackup /usr/bin/ 
 		}|| {
 		echo "${EYOU_XTRBACK_BIN56}/xtrabackup not find file. "
@@ -209,7 +209,7 @@ MYSQL_VERSION=${1}
 		exit 1
 		}
 	[ -f ${EYOU_XTRBACK_BIN}/xtrabackup ] && {
-		unlink /usr/bin/xtrabackup;
+		unlink /usr/bin/xtrabackup >/dev/null 2>&1;
 		ln -s ${EYOU_XTRBACK_BIN}/xtrabackup /usr/bin/ 
 		}|| {
 		echo "${EYOU_XTRBACK_BIN}/xtrabackup not find file. "
@@ -225,7 +225,7 @@ MYSQL_VERSION=${1}
 		exit 1
 		}
 	[ -f ${EYOU_XTRBACK_BIN51}/xtrabackup ] && {
-		unlink /usr/bin/xtrabackup;
+		unlink /usr/bin/xtrabackup >/dev/null 2>&1;
 		ln -s ${EYOU_XTRBACK_BIN51}/xtrabackup /usr/bin/ 
 		}|| {
 		echo "${EYOU_XTRBACK_BIN51}/xtrabackup not find file. "
@@ -241,7 +241,7 @@ MYSQL_VERSION=${1}
 		exit 1
 		}
 	[ -f ${EYOU_XTRBACK_BIN}/xtrabackup ] && {
-		unlink /usr/bin/xtrabackup;
+		unlink /usr/bin/xtrabackup >/dev/null 2>&1;
 		ln -s ${EYOU_XTRBACK_BIN}/xtrabackup /usr/bin/ 
 			}|| {
 		echo "${EYOU_XTRBACK_BIN}/xtrabackup not find file. "
@@ -257,7 +257,7 @@ MYSQL_VERSION=${1}
 		exit 1
 		}
 	[ -f ${EYOU_XTRBACK_BIN55}/xtrabackup ] && {
-		unlink /usr/bin/xtrabackup;
+		unlink /usr/bin/xtrabackup >/dev/null 2>&1;
 		ln -s ${EYOU_XTRBACK_BIN55}/xtrabackup /usr/bin/
 			}|| {
 		echo "${EYOU_XTRBACK_BIN55}/xtrabackup not find file. "
