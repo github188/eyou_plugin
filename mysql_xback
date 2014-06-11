@@ -353,7 +353,6 @@ REPAIR_POST_FILE="xtrabackup_checkpoints"
                         } || {
                 EYOU_INNOBACK="$(eval \${EYOU_XTRBACK_BIN${EYOU_MYSQL_VERSION_ONE}}/innobackupex)"
                         }
-		EYOU_INNOBACK="$(eval \${EYOU_XTRBACK_BIN${EYOU_MYSQL_VERSION_ONE}}/innobackupex)"
 		if [ -z "$(echo ${ALL_BACKUP_DIR}|grep '_end$')" ];then
 		echo "恢复全备份中..."
 		ALL_REPAIR_TYPE="$(awk '{if($1 == "backup_type") {print $3}}' ${EYOU_INNOBAK_DIR_NAME}/${REPAIR_MY_TIME}/full_bak/${REPAIR_MY_CONF}/${REPAIR_POST_FILE})"
