@@ -30,7 +30,7 @@ DEL_Merge_Hours="1"
 
 
 #指定备份文件路径
-INNOBAK_DIR="/data"
+INNOBAK_DIR="/data1"
 
 #指定mysql目录的权限
 MYSQL_DIR_USER="eyou:eyou"
@@ -60,9 +60,14 @@ EYOU_XTRBACK_BIN56="${EYOU_DIR}/opt/xtrabackup56/bin"
 EYOU_INNOBACK="${EYOU_XTRBACK_BIN}/innobackupex"
 EYOU_XTRABACKUP="${EYOU_XTRBACK_BIN}/xtrabackup"
 EYOU_INNOBAK_DIR_NAME="${INNOBAK_DIR}/INNOBACKUPEX"
+[ -f "${EYOU_ETC}" ] && {
 EYOU_MAIL_MYSQL="$(grep '^db_name' ${EYOU_ETC}|cut -d '=' -f2|cut -d '"' -f2)"
 EYOU_MAIL_INDEX_MYSQL="$(grep '^dbumi_mysql_dsn' ${EYOU_ETC}|cut -d '=' -f4|cut -d '"' -f1)"
 EYOU_MAIL_LOG_MYSQL="$(grep '^dblog_name' ${EYOU_ETC}|cut -d '=' -f2|cut -d '"' -f2)"
+} || {
+	echo "not find ${EYOU_ETC} file."
+	exit 1
+}
 MYSQL_DATABASE_CONF="${EYOU_MAIL_MYSQL}:my.cnf:${MYSQL_VERSION};${EYOU_MAIL_INDEX_MYSQL}:my_index.cnf:${MYSQL_INDEX_VERSION};${EYOU_MAIL_LOG_MYSQL}:my_log.cnf:${MYSQL_LOG_VERSION}"
 LOG_NAME="${EYOU_INNOBAK_DIR_NAME}/INNOBAK.log"
 BAK_LOCK="${EYOU_INNOBAK_DIR_NAME}/.locak_sql"
@@ -70,6 +75,15 @@ ALL_BAK_STAMP="86400"
 INC_BAK_STAMP="3600"
 DATE_TIME="$(date +%s)"
 
+[ -d "${EYOU_XTRBACK_BIN}" -o -d "${EYOU_XTRBACK_BIN51}" -o -d "${EYOU_XTRBACK_BIN55}" -o -d "${EYOU_XTRBACK_BIN56}" ] || {
+	echo "not find xtrabackup dir."
+	exit 1
+	}
+
+[ -d "${INNOBAK_DIR}" ] || {
+	echo "echo ${INNOBAK_DIR} not file dir."
+	exit 1
+	}
 [ -d "${EYOU_INNOBAK_DIR_NAME}" ] || mkdir ${EYOU_INNOBAK_DIR_NAME}
 
 CHECK_ALL_OR_INC () {
