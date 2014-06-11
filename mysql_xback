@@ -164,6 +164,109 @@ MYSQL_COPY_BAK () {
 	}
 }
 
+CHECK_MYSQL_XTRBAK_FILE () {
+MYSQL_VERSION=${1}
+
+	if [ "${MYSQL_VERSION}" == "5.6" ] && [ "$DEFAULT_MYSQL_VERSION" == "${MYSQL_VERSION}" ];then
+		EYOU_INNOBACK="${EYOU_XTRBACK_BIN}/innobackupex"
+	[ -f ${EYOU_XTRBACK_BIN}/xtrabackup_56 ] && {
+		unlink /usr/bin//xtrabackup_56 >/dev/null 2>&1;
+		ln -s ${EYOU_XTRBACK_BIN}/xtrabackup_56 /usr/bin/
+		 } || {
+		echo "${EYOU_XTRBACK_BIN}/xtrabackup_56 not find file. "
+		exit 1
+		}
+	[ -f ${EYOU_XTRBACK_BIN}/xtrabackup ] && {
+		unlink /usr/bin/xtrabackup;
+		ln -s ${EYOU_XTRBACK_BIN}/xtrabackup /usr/bin/ 
+		}|| {
+		echo "${EYOU_XTRBACK_BIN}/xtrabackup not find file. "
+		exit 1
+		}
+	elif [ "${MYSQL_VERSION}" == "5.6" ] && [ "$DEFAULT_MYSQL_VERSION" != "${MYSQL_VERSION}" ];then
+		EYOU_INNOBACK="${EYOU_XTRBACK_BIN56}/innobackupex"
+	[ -f ${EYOU_XTRBACK_BIN56}/xtrabackup_56 ] && {
+		unlink /usr/bin/xtrabackup_56 >/dev/null 2>&1;
+		ln -s ${EYOU_XTRBACK_BIN56}/xtrabackup_56 /usr/bin/ 
+		} || {
+		echo "${EYOU_XTRBACK_BIN56}/xtrabackup_56 not find file. "
+		exit 1
+		}
+	[ -f ${EYOU_XTRBACK_BIN56}/xtrabackup ] && {
+		unlink /usr/bin/xtrabackup;
+		ln -s ${EYOU_XTRBACK_BIN56}/xtrabackup /usr/bin/ 
+		}|| {
+		echo "${EYOU_XTRBACK_BIN56}/xtrabackup not find file. "
+		exit 1
+		}
+	elif [ "${MYSQL_VERSION}" == "5.1" ] && [ "$DEFAULT_MYSQL_VERSION" == "${MYSQL_VERSION}" ];then
+		EYOU_INNOBACK="${EYOU_XTRBACK_BIN}/innobackupex"
+	[ -f ${EYOU_XTRBACK_BIN}/xtrabackup_51 ] && {
+		unlink /usr/bin/xtrabackup_51 >/dev/null 2>&1;
+		ln -s ${EYOU_XTRBACK_BIN}/xtrabackup_51 /usr/bin/ 
+		} || {
+		echo "${EYOU_XTRBACK_BIN}/xtrabackup_51 not find file. "
+		exit 1
+		}
+	[ -f ${EYOU_XTRBACK_BIN}/xtrabackup ] && {
+		unlink /usr/bin/xtrabackup;
+		ln -s ${EYOU_XTRBACK_BIN}/xtrabackup /usr/bin/ 
+		}|| {
+		echo "${EYOU_XTRBACK_BIN}/xtrabackup not find file. "
+		exit 1
+		}
+	elif [ "${MYSQL_VERSION}" == "5.1" ] && [ "$DEFAULT_MYSQL_VERSION" != "${MYSQL_VERSION}" ];then
+		EYOU_INNOBACK="${EYOU_XTRBACK_BIN51}/innobackupex"
+	[ -f ${EYOU_XTRBACK_BIN51}/xtrabackup_51 ] && {
+		unlink /usr/bin/xtrabackup_51 >/dev/null 2>&1;
+		ln -s ${EYOU_XTRBACK_BIN51}/xtrabackup_51 /usr/bin/ 
+		} || {
+		echo "${EYOU_XTRBACK_BIN51}/xtrabackup_51 not find file. "
+		exit 1
+		}
+	[ -f ${EYOU_XTRBACK_BIN51}/xtrabackup ] && {
+		unlink /usr/bin/xtrabackup;
+		ln -s ${EYOU_XTRBACK_BIN51}/xtrabackup /usr/bin/ 
+		}|| {
+		echo "${EYOU_XTRBACK_BIN51}/xtrabackup not find file. "
+		exit 1
+		}
+	elif [ "${MYSQL_VERSION}" == "5.5" ] && [ "$DEFAULT_MYSQL_VERSION" == "${MYSQL_VERSION}" ];then
+		EYOU_INNOBACK="${EYOU_XTRBACK_BIN}/innobackupex"
+	[ -f ${EYOU_XTRBACK_BIN}/xtrabackup_55 ] && {
+		unlink /usr/bin/xtrabackup_55 >/dev/null 2>&1;
+		ln -s ${EYOU_XTRBACK_BIN}/xtrabackup_55 /usr/bin/ 
+		} || {
+		echo "${EYOU_XTRBACK_BIN}/xtrabackup_55 not find file. "
+		exit 1
+		}
+	[ -f ${EYOU_XTRBACK_BIN}/xtrabackup ] && {
+		unlink /usr/bin/xtrabackup;
+		ln -s ${EYOU_XTRBACK_BIN}/xtrabackup /usr/bin/ 
+			}|| {
+		echo "${EYOU_XTRBACK_BIN}/xtrabackup not find file. "
+		exit 1
+		}
+	elif [ "${MYSQL_VERSION}" == "5.5" ] && [ "$DEFAULT_MYSQL_VERSION" != "${MYSQL_VERSION}" ];then
+		EYOU_INNOBACK="${EYOU_XTRBACK_BIN55}/innobackupex"
+	[ -f ${EYOU_XTRBACK_BIN55}/xtrabackup_55 ] && {
+		unlink /usr/bin/xtrabackup_55 >/dev/null 2>&1;
+		ln -s ${EYOU_XTRBACK_BIN55}/xtrabackup_55 /usr/bin/ 
+		} || {
+		echo "${EYOU_XTRBACK_BIN55}/xtrabackup_55 not find file. "
+		exit 1
+		}
+	[ -f ${EYOU_XTRBACK_BIN55}/xtrabackup ] && {
+		unlink /usr/bin/xtrabackup;
+		ln -s ${EYOU_XTRBACK_BIN55}/xtrabackup /usr/bin/
+			}|| {
+		echo "${EYOU_XTRBACK_BIN55}/xtrabackup not find file. "
+		exit 1
+		}
+	fi
+
+}
+
 
 INNOBACKUP_BAKCUP () {
 
@@ -179,43 +282,7 @@ do
 		exit 1
 		}
 	MYSQL_VERSION=$($EYOU_MYSQL --defaults-file="${EYOU_MYSQL_CONF}/${DATACONF}" -s -e "status;"|grep 'Server version'|grep -o '5.*-'|awk -F'.' '{print $1"."$2}')
-	if [ "${MYSQL_VERSION}" == "5.6" ] && [ "$DEFAULT_MYSQL_VERSION" == "${MYSQL_VERSION}" ] && [ ! -f /usr/bin/xtrabackup_56 -a ! -f /usr/sbin/xtrabackup_56 -a ! -f /bin/xtrabackup_56 -a ! -f /sbin/xtrabackup_56 ];then
-		EYOU_INNOBACK="${EYOU_XTRBACK_BIN}/innobackupex"
-	[ -f ${EYOU_XTRBACK_BIN}/xtrabackup_56 ] && ln -s ${EYOU_XTRBACK_BIN}/xtrabackup_56 /usr/bin/ || {
-		echo "${EYOU_XTRBACK_BIN}/xtrabackup_56 not find file. "
-		exit 1
-		}
-	elif [ "${MYSQL_VERSION}" == "5.6" ] && [ "$DEFAULT_MYSQL_VERSION" != "${MYSQL_VERSION}" ] && [ ! -f /usr/bin/xtrabackup_56 -a ! -f /usr/sbin/xtrabackup_56 -a ! -f /bin/xtrabackup_56 -a ! -f /sbin/xtrabackup_56 ];then
-		EYOU_INNOBACK="${EYOU_XTRBACK_BIN56}/innobackupex"
-	[ -f ${EYOU_XTRBACK_BIN56}/xtrabackup_56 ] && ln -s ${EYOU_XTRBACK_BIN56}/xtrabackup_56 /usr/bin/ || {
-		echo "${EYOU_XTRBACK_BIN56}/xtrabackup_56 not find file. "
-		exit 1
-		}
-	elif [ "${MYSQL_VERSION}" == "5.1" ] && [ "$DEFAULT_MYSQL_VERSION" == "${MYSQL_VERSION}" ] && [ ! -f /usr/bin/xtrabackup_51 -a ! -f /bin/xtrabackup_51 -a ! -f /usr/sbin/xtrabackup_51 -a ! -f /sbin/xtrabackup_51 ];then
-		EYOU_INNOBACK="${EYOU_XTRBACK_BIN}/innobackupex"
-	[ -f ${EYOU_XTRBACK_BIN}/xtrabackup_51 ] && ln -s ${EYOU_XTRBACK_BIN}/xtrabackup_51 /usr/bin/ || {
-		echo "${EYOU_XTRBACK_BIN}/xtrabackup_51 not find file. "
-		exit 1
-		}
-	elif [ "${MYSQL_VERSION}" == "5.1" ] && [ "$DEFAULT_MYSQL_VERSION" != "${MYSQL_VERSION}" ] && [ ! -f /usr/bin/xtrabackup_51 -a ! -f /bin/xtrabackup_51 -a ! -f /usr/sbin/xtrabackup_51 -a ! -f /sbin/xtrabackup_51 ];then
-		EYOU_INNOBACK="${EYOU_XTRBACK_BIN51}/innobackupex"
-	[ -f ${EYOU_XTRBACK_BIN51}/xtrabackup_51 ] && ln -s ${EYOU_XTRBACK_BIN51}/xtrabackup_51 /usr/bin/ || {
-		echo "${EYOU_XTRBACK_BIN51}/xtrabackup_51 not find file. "
-		exit 1
-		}
-	elif [ "${MYSQL_VERSION}" == "5.5" ] && [ "$DEFAULT_MYSQL_VERSION" == "${MYSQL_VERSION}" ] && [ ! -f /usr/bin/xtrabackup_55 -a ! -f /bin/xtrabackup_55 -a ! -f /usr/sbin/xtrabackup_55 -a ! -f /sbin/xtrabackup_55 ];then
-		EYOU_INNOBACK="${EYOU_XTRBACK_BIN}/innobackupex"
-	[ -f ${EYOU_XTRBACK_BIN}/xtrabackup_55 ] && ln -s ${EYOU_XTRBACK_BIN}/xtrabackup_55 /usr/bin/ || {
-		echo "${EYOU_XTRBACK_BIN}/xtrabackup_55 not find file. "
-		exit 1
-		}
-	elif [ "${MYSQL_VERSION}" == "5.5" ] && [ "$DEFAULT_MYSQL_VERSION" != "${MYSQL_VERSION}" ] && [ ! -f /usr/bin/xtrabackup_55 -a ! -f /bin/xtrabackup_55 -a ! -f /usr/sbin/xtrabackup_55 -a ! -f /sbin/xtrabackup_55 ];then
-		EYOU_INNOBACK="${EYOU_XTRBACK_BIN55}/innobackupex"
-	[ -f ${EYOU_XTRBACK_BIN55}/xtrabackup_55 ] && ln -s ${EYOU_XTRBACK_BIN55}/xtrabackup_55 /usr/bin/ || {
-		echo "${EYOU_XTRBACK_BIN55}/xtrabackup_55 not find file. "
-		exit 1
-		}
-	fi
+	CHECK_MYSQL_XTRBAK_FILE ${MYSQL_VERSION}
 
 	if [ -z ${INC_BAK_TIME} ] && [ "${RUN_BAK_STATUS}" != "ALL_BAK" ] ;then
 	[ -f "${EYOU_INNOBAK_DIR_NAME}/INNOBAK_${INIT_BAK_TIME}/full_bak/.${DATACONF}.ok" ] || {
@@ -337,6 +404,7 @@ REPAIR_POST_FILE="xtrabackup_checkpoints"
 	exit 1
 	}
 
+	CHECK_MYSQL_XTRBAK_FILE "${REPAIR_MY_CONF}"
 	if [ -f "${EYOU_MYSQL_CONF}/${REPAIR_MY_CONF}" ] && [ -d "${EYOU_INNOBAK_DIR_NAME}/${REPAIR_MY_TIME}/full_bak/${REPAIR_MY_CONF}" ];then
 	REPAIR_ALL_MY_TIME=$(find ${EYOU_INNOBAK_DIR_NAME}/${REPAIR_MY_TIME}/full_bak -type f -name .${REPAIR_MY_CONF}.ok -exec grep "${REPAIR_MY_TIME}" {} \; -print)
 	ALL_BACKUP_DIR=$(echo ${REPAIR_ALL_MY_TIME%/.${REPAIR_MY_CONF}.ok}|cut -d ' ' -f1)
