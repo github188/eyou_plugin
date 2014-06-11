@@ -356,7 +356,8 @@ REPAIR_POST_FILE="xtrabackup_checkpoints"
 		if [ -z "$(echo ${ALL_BACKUP_DIR}|grep '_end$')" ];then
 		echo "恢复全备份中..."
 		ALL_REPAIR_TYPE="$(awk '{if($1 == "backup_type") {print $3}}' ${EYOU_INNOBAK_DIR_NAME}/${REPAIR_MY_TIME}/full_bak/${REPAIR_MY_CONF}/${REPAIR_POST_FILE})"
-		ALL_REPAIR_POST="$(awk '{if($1 == "last_lsn") {print $3}}' ${EYOU_INNOBAK_DIR_NAME}/${REPAIR_MY_TIME}/full_bak/${REPAIR_MY_CONF}/${REPAIR_POST_FILE})"
+		ALL_REPAIR_LAST_POST="$(awk '{if($1 == "last_lsn") {print $3}}' ${EYOU_INNOBAK_DIR_NAME}/${REPAIR_MY_TIME}/full_bak/${REPAIR_MY_CONF}/${REPAIR_POST_FILE})"
+		ALL_REPAIR_TO_POST="$(awk '{if($1 == "to_lsn") {print $3}}' ${EYOU_INNOBAK_DIR_NAME}/${REPAIR_MY_TIME}/full_bak/${REPAIR_MY_CONF}/${REPAIR_POST_FILE})"
 		MYSQL_DIR="$(awk '{if($1=="datadir") {print $3}}' ${EYOU_MYSQL_CONF}/${REPAIR_MY_CONF})"
 		ALL_MYSQL_APPLY_LOG ${EYOU_MYSQL_CONF}/${REPAIR_MY_CONF} ${EYOU_INNOBAK_DIR_NAME}/${REPAIR_MY_TIME}/full_bak/${REPAIR_MY_CONF} ${EYOU_INNOBAK_DIR_NAME}/${REPAIR_MY_CONF}
 		[ $? -eq 0 ] && repair_exit="0" || repair_exit="1"
@@ -386,18 +387,18 @@ REPAIR_POST_FILE="xtrabackup_checkpoints"
 	INC_BACKUP_DIR=$(echo ${REPAIR_INC_MY_TIME%/.${REPAIR_MY_CONF}.ok}|cut -d ' ' -f2)
 		INC_REPAIR_FROM_POST="$(awk '{if($1 == "from_lsn") {print $3}}' ${INC_BACKUP_DIR}/${REPAIR_MY_CONF}/${REPAIR_POST_FILE}) "
 		echo "将增量备份 ${INC_BACKUP_DIR}  恢复至全备份中..."
-		if [ -z "$(echo ${OLD_BACKUP_DIR}|grep '_end$')" ] && [ "${INC_REPAIR_FROM_POST}" -ge "${ALL_REPAIR_POST}" ] ;then
+		if [ -z "$(echo ${OLD_BACKUP_DIR}|grep '_end$')" ] && [ "${INC_REPAIR_FROM_POST}" -ge "${ALL_REPAIR_LAST_POST}" -o "${INC_REPAIR_FROM_POST}" -ge "${ALL_REPAIR_TO_POST}"] ;then
 		INC_MYSQL_APPLY_LOG  ${EYOU_MYSQL_CONF}/${REPAIR_MY_CONF} ${EYOU_INNOBAK_DIR_NAME}/${REPAIR_MY_TIME}/full_bak/${REPAIR_MY_CONF} ${INC_BACKUP_DIR}/${REPAIR_MY_CONF} ${EYOU_INNOBAK_DIR_NAME}/${REPAIR_MY_CONF}
 		[ $? -eq 0 ] && repair_exit="0" || repair_exit="1"
 		REPAIR_MY_TIME_NAME=${INC_BACKUP_DIR#${EYOU_INNOBAK_DIR_NAME}/${REPAIR_MY_TIME}/}
-		elif [ ! -z "$(echo ${OLD_BACKUP_DIR}|grep '_end$')" ] && [ "${INC_REPAIR_FROM_POST}" -ge "${ALL_REPAIR_POST}" ] ;then
+		elif [ ! -z "$(echo ${OLD_BACKUP_DIR}|grep '_end$')" ] && [ "${INC_REPAIR_FROM_POST}" -ge "${ALL_REPAIR_LAST_POST}" -o "${INC_REPAIR_FROM_POST}" -ge "${ALL_REPAIR_TO_POST}" ] ;then
 		ENDINC_MYSQL_APPLY_LOG ${EYOU_MYSQL_CONF}/${REPAIR_MY_CONF} ${EYOU_INNOBAK_DIR_NAME}/${REPAIR_MY_TIME}/full_bak/${REPAIR_MY_CONF} ${INC_BACKUP_DIR}/${REPAIR_MY_CONF} ${EYOU_INNOBAK_DIR_NAME}/${REPAIR_MY_CONF}
 		[ $? -eq 0 ] && repair_exit="0" || repair_exit="1"
-		elif [ -z "$(echo ${OLD_BACKUP_DIR}|grep '_end$')" ] && [ "${INC_REPAIR_FROM_POST}" -lt "${ALL_REPAIR_POST}" ] ;then
+		elif [ -z "$(echo ${OLD_BACKUP_DIR}|grep '_end$')" ] && [ "${INC_REPAIR_FROM_POST}" -lt "${ALL_REPAIR_LAST_POST}" -a "${INC_REPAIR_FROM_POST}" -lt "${ALL_REPAIR_TO_POST}" ] ;then
 		echo "检测到增量备份的from 小于 全备的last 可能已经将此次增量恢复，跳过..."
 		REPAIR_MY_TIME_NAME=${INC_BACKUP_DIR#${EYOU_INNOBAK_DIR_NAME}/${REPAIR_MY_TIME}/}
 		repair_exit="0"
-		elif [ ! -z "$(echo ${OLD_BACKUP_DIR}|grep '_end$')" ] && [ "${INC_REPAIR_FROM_POST}" -lt "${ALL_REPAIR_POST}" ] ;then
+		elif [ ! -z "$(echo ${OLD_BACKUP_DIR}|grep '_end$')" ] && [ "${INC_REPAIR_FROM_POST}" -lt "${ALL_REPAIR_LAST_POST}" -a "${INC_REPAIR_FROM_POST}" -lt "${ALL_REPAIR_TO_POST}" ] ;then
 		echo "检测到增量备份的from 小于 全备的last 可能已经将此次增量恢复，跳过..."
 		repair_exit="0"
 		fi
