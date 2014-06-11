@@ -527,7 +527,7 @@ CHECK_DISK_SIZE () {
 
 CHECK_DIR="$(cd ${EYOU_INNOBAK_DIR_NAME}|pwd -P)"
 CHECK_DISK_DIR_NAME="$(echo ${CHECK_DIR}|awk -F '/' '{print $2}')"
-CHECK_DISK_Avail="$(df -k|awk "{if($6 == "/${CHECK_DISK_DIR_NAME}"){print $3}}")"
+CHECK_DISK_Avail="$(df -k|awk "{if($6=="/${CHECK_DISK_DIR_NAME}"){print $3}}")"
 if [ "${1}" == "ALL_BAK" ];then
 DATA_DIR="$(for i in ${MYSQL_DATABASE_CONF};do DATACONF="$(echo $i|cut -d ':' -f2)";awk '{if($1=="datadir") {print $3}}' ${EYOU_MYSQL_CONF}/${DATACONF};done)"
 MYSQL_DIR_SIZE="$(find ${DATA_DIR} -type f ! -name mysql-bin* -a ! -name *.err -exec du -sk {} \;|awk 'BEGIN{number=0}{number+=$1}END{print number}')"
@@ -545,7 +545,7 @@ OLD_INC_SIZE="$(du -sk ${INC_DIR}|awk '{print $1}')"
 elif [ "${1}" == "REP_BAK" ];then
 DATA_DIR="$(awk '{if($1=="datadir") {print $3}}' ${EYOU_MYSQL_CONF}/${2})"
 DATA_DIR_NAME="$(cd ${DATA_DIR}|pwd -P|awk -F '/' '{print $2}')"
-CHECK_DATA_Avail="$(df -k|awk "{if($6 == "/${DATA_DIR_NAME}"){print $3}}")"
+CHECK_DATA_Avail="$(df -k|awk "{if($6=="/${DATA_DIR_NAME}"){print $3}}")"
 REPAIR_MYSQL_SIZE=$(find ${3} -type d -name ${2} -exec du -sk {} \;|awk 'BEGIN{number=0}{number+=$1}END{print number}')
 [ "${CHECK_DATA_Avail}" -gt "${REPAIR_MYSQL_SIZE}" ] || {
 	echo "恢复 ${2} 数据库 判断 数据库所在目录空间不足，退出恢复，请确定空间OK 后再进行恢复。"
