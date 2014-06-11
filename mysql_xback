@@ -437,6 +437,7 @@ REPAIR_POST_FILE="xtrabackup_checkpoints"
 		ALL_MYSQL_APPLY_LOG ${EYOU_MYSQL_CONF}/${REPAIR_MY_CONF} ${EYOU_INNOBAK_DIR_NAME}/${REPAIR_MY_TIME}/full_bak/${REPAIR_MY_CONF} ${EYOU_INNOBAK_DIR_NAME}/${REPAIR_MY_CONF}
 		[ $? -eq 0 ] && repair_exit="0" || repair_exit="1"
 		else
+		MYSQL_DIR="$(awk '{if($1=="datadir"){print $3}}' ${EYOU_MYSQL_CONF}/${REPAIR_MY_CONF})"
 		echo "恢复全备份中..."
 		MYSQL_COPY_BAK ${EYOU_MYSQL_CONF}/${REPAIR_MY_CONF} ${EYOU_INNOBAK_DIR_NAME}/${REPAIR_MY_TIME}/full_bak/${REPAIR_MY_CONF} ${EYOU_INNOBAK_DIR_NAME}/${REPAIR_MY_CONF}
 		[ $? -eq 0 ] && {
