@@ -349,7 +349,7 @@ REPAIR_POST_FILE="xtrabackup_checkpoints"
 		EYOU_MYSQL_VERSION_ONE="$(echo ${MYSQL_LOG_VERSION}|sed 's/.//g')"
 		fi
 		[ -z "${EYOU_MYSQL_VERSION_ONE}" ] && {
-                EYOU_INNOBACK="$(eval \${EYOU_XTRBACK_BIN}/innobackupex)"
+                EYOU_INNOBACK="${EYOU_XTRBACK_BIN}/innobackupex"
                         } || {
                 EYOU_INNOBACK="$(eval \${EYOU_XTRBACK_BIN${EYOU_MYSQL_VERSION_ONE}}/innobackupex)"
                         }
