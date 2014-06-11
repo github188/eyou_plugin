@@ -404,23 +404,26 @@ REPAIR_POST_FILE="xtrabackup_checkpoints"
 	exit 1
 	}
 
-	CHECK_MYSQL_XTRBAK_FILE "${REPAIR_MY_CONF}"
 	if [ -f "${EYOU_MYSQL_CONF}/${REPAIR_MY_CONF}" ] && [ -d "${EYOU_INNOBAK_DIR_NAME}/${REPAIR_MY_TIME}/full_bak/${REPAIR_MY_CONF}" ];then
 	REPAIR_ALL_MY_TIME=$(find ${EYOU_INNOBAK_DIR_NAME}/${REPAIR_MY_TIME}/full_bak -type f -name .${REPAIR_MY_CONF}.ok -exec grep "${REPAIR_MY_TIME}" {} \; -print)
 	ALL_BACKUP_DIR=$(echo ${REPAIR_ALL_MY_TIME%/.${REPAIR_MY_CONF}.ok}|cut -d ' ' -f1)
 		EYOU_MYSQL_VERSION_ONE=""
 		if [ "${DEFAULT_MYSQL_VERSION}" != "${MYSQL_VERSION}" ] && [ "${REPAIR_MY_CONF}" == "my.cnf" ];then
 		EYOU_MYSQL_VERSION_ONE="$(echo ${MYSQL_VERSION}|sed 's/.//g')"
+		CHECK_MYSQL_XTRBAK_FILE "${MYSQL_VERSION}"
 		elif [ "${DEFAULT_MYSQL_VERSION}" != "${MYSQL_INDEX_VERSION}" ] && [ "${REPAIR_MY_CONF}" == "my_index.cnf" ];then
 		EYOU_MYSQL_VERSION_ONE="$(echo ${MYSQL_INDEX_VERSION}|sed 's/.//g')"
+		CHECK_MYSQL_XTRBAK_FILE "${MYSQL_INDEX_VERSION}"
 		elif [ "${DEFAULT_MYSQL_VERSION}" != "${MYSQL_LOG_VERSION}" ] && [ "${REPAIR_MY_CONF}" == "my_log.cnf" ];then
 		EYOU_MYSQL_VERSION_ONE="$(echo ${MYSQL_LOG_VERSION}|sed 's/.//g')"
+		CHECK_MYSQL_XTRBAK_FILE "${MYSQL_LOG_VERSION}"
 		fi
-		[ -z "${EYOU_MYSQL_VERSION_ONE}" ] && {
-                EYOU_INNOBACK="${EYOU_XTRBACK_BIN}/innobackupex"
-                        } || {
-                EYOU_INNOBACK="$(eval \${EYOU_XTRBACK_BIN${EYOU_MYSQL_VERSION_ONE}}/innobackupex)"
-                        }
+			if [ -z "${EYOU_MYSQL_VERSION_ONE}" ];then
+			CHECK_MYSQL_XTRBAK_FILE "${DEFAULT_MYSQL_VERSION}"
+       		        EYOU_INNOBACK="${EYOU_XTRBACK_BIN}/innobackupex"
+			else
+         	        EYOU_INNOBACK="$(eval \${EYOU_XTRBACK_BIN${EYOU_MYSQL_VERSION_ONE}}/innobackupex)"
+			fi
 		if [ -z "$(echo ${ALL_BACKUP_DIR}|grep '_end$')" ];then
 		echo "恢复全备份中..."
 		ALL_REPAIR_TYPE="$(awk '{if($1 == "backup_type") {print $3}}' ${EYOU_INNOBAK_DIR_NAME}/${REPAIR_MY_TIME}/full_bak/${REPAIR_MY_CONF}/${REPAIR_POST_FILE})"
