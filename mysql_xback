@@ -537,7 +537,7 @@ MYSQL_DIR_SIZE="$(find ${DATA_DIR} -type f ! -name mysql-bin* -a ! -name *.err -
 	}
 elif [ "${1}" == "INC_BAK" ];then
 INC_DIR="${2}"
-OLD_INC_SIZE="$(du -sk ${INC_DIR})"
+OLD_INC_SIZE="$(du -sk ${INC_DIR}|awk '{print $1}')"
 [ "${CHECK_DISK_Avail}" -gt "${OLD_INC_SIZE}" ] || {
 	echo "$(date +%F" "%H:%M:%S) 增量备份由于空间不足,退出。" >> ${LOG_NAME}
 	exit 2049
