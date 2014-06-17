@@ -125,7 +125,7 @@ fi
 }
 
 check_system () {
-[ "$1" == "bak" -a "$1" == "repair" ] || {
+[ "$1" == "bak" -o "$1" == "repair" ] && {
 
         [ "$2" == "start" ] && {
 if [ -f ${BAK_LOCK}.${1} ] && [ ! -z "$(ps -ef |grep `basename $0`|grep -v " $$ "|grep "${1}" |grep -v grep)" ];then
