@@ -125,21 +125,16 @@ fi
 }
 
 check_system () {
-[ "$1" == "bak" -a "$1" == "repair" ] || {
-
-        [ "$2" == "start" ] && {
-if [ -f ${BAK_LOCK}.${1} ] && [ ! -z "$(ps -ef |grep `basename $0`|grep -v " $$ "|grep "${1}" |grep -v grep)" ];then
-        echo "程序正在运行"
-        exit 1
-else
-        echo $$ > ${BAK_LOCK}.${1}
-fi
-                }
-        [ "$2" == "end" ] && {
-        rm -rf ${BAK_LOCK}.${1}
-                }
-        }
+ps -ef |grep $(basename $0)|grep -v grep
+[ -f ${BAK_LOCK} ] && {
+	echo "程序正在运行"
+	exit 1
+	} || {
+	date +%s > $BAK_LOCK
+	}
+rm -rf $BAK_LOCK
 }
+check_system
 
 ALL_MYSQL_BACKUP () {
 	${EYOU_INNOBACK} --user=eyou --password=eyou --no-timestamp --no-lock --defaults-file=${1} ${2} > ${2}.log 2>&1
@@ -580,18 +575,14 @@ check_disk_size_number=1
 
 case $1 in
 	--backup|-bak)
-		check_system bak start
 		INNOBACKUP_BAKCUP ;;
-		check_system bak end
 	--show|-p)
 		SHOW_BACKUP_TIME show ${2}
 	;;
 	--repair|-r)
-		check_system repair start
 		SHOW_BACKUP_TIME repair ${2}
 		REPAIR_CHECK_MYSQL ${2}
 		REPAIR_BACKUP_MYSQL ${2} ${3}
-		check_system repair end
 	;;
 	*)
 		echo "$0
