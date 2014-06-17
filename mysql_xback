@@ -127,16 +127,18 @@ fi
 check_system () {
 [ "$1" == "bak" -o "$1" == "repair" ] && {
 
-	[ "$1" == "bak" ] && check_proc_name="\-bak|--backup"
-	[ "$1" == "repair" ] && check_proc_name="\-r|--repair"
+	[ "$1" == "bak" ] && check_proc_name="$(ps -ef |grep `basename $0`|grep -v " $$ " |grep -v  " $! " |grep -E "\-bak|--backup"|grep -v grep)"
+	[ "$1" == "repair" ] && check_proc_name="$(ps -ef |grep `basename $0`|grep -v " $$ " |grep -v  " $! " |grep -E "\-r|--repair"|grep -v grep)"
 
         [ "$2" == "start" ] && {
-if [ -f ${BAK_LOCK}.${1} ] && [ ! -z "$(ps -ef |grep `basename $0`|grep -v " $$ " |grep -v  " $! " |grep -E "${check_proc_name}" |grep -v grep)" ];then
+
+if [ -f ${BAK_LOCK}.${1} ];then
+	[ ! -z "${check_proc_name}" ] && {
         echo "程序正在运行"
         exit 1
-else
-        echo $$ > ${BAK_LOCK}.${1}
+	}
 fi
+        echo $$ > ${BAK_LOCK}.${1}
                 }
         [ "$2" == "end" ] && {
         rm -rf ${BAK_LOCK}.${1}
