@@ -421,7 +421,10 @@ REPAIR_POST_FILE="xtrabackup_checkpoints"
 	CHECK_DISK_SIZE REP_BAK ${REPAIR_MY_CONF} ${EYOU_INNOBAK_DIR_NAME}/${REPAIR_MY_TIME}	
 	if [ -f "${EYOU_MYSQL_CONF}/${REPAIR_MY_CONF}" ] && [ -d "${EYOU_INNOBAK_DIR_NAME}/${REPAIR_MY_TIME}/full_bak/${REPAIR_MY_CONF}" ];then
 	REPAIR_ALL_MY_TIME=$(find ${EYOU_INNOBAK_DIR_NAME}/${REPAIR_MY_TIME}/full_bak -type f -name .${REPAIR_MY_CONF}.ok -exec grep "${REPAIR_MY_TIME}" {} \; -print)
-	[ -z "${REPAIR_ALL_MY_TIME}" ] && break
+	[ -z "${REPAIR_ALL_MY_TIME}" ] && {
+		echo "未找到包含 ${REPAIR_MY_TIME} 的规定文件，可能下次备份损坏，恢复截至到此刻。"
+		break
+		}
 	ALL_BACKUP_DIR=$(echo ${REPAIR_ALL_MY_TIME%/.${REPAIR_MY_CONF}.ok}|cut -d ' ' -f1)
 		EYOU_MYSQL_VERSION_ONE=""
 		if [ "${DEFAULT_MYSQL_VERSION}" != "${MYSQL_VERSION}" ] && [ "${REPAIR_MY_CONF}" == "my.cnf" ];then
@@ -471,7 +474,10 @@ REPAIR_POST_FILE="xtrabackup_checkpoints"
 	while [ -z "$(echo ${OLD_BACKUP_DIR}|grep '_end$')" ];do
 	if [ ${repair_exit} -eq "0" ];then
 	REPAIR_INC_MY_TIME=$(find ${EYOU_INNOBAK_DIR_NAME}/${REPAIR_MY_TIME}/INC* -type f -name .${REPAIR_MY_CONF}.ok -exec grep "${REPAIR_MY_TIME_NAME}" {} \; -print)
-	[ -z "${REPAIR_INC_MY_TIME}" ] && break
+	[ -z "${REPAIR_INC_MY_TIME}" ] && {
+		echo "未找到包含 ${REPAIR_MY_TIME} 的规定文件，可能下次备份损坏，恢复截至到此刻。"
+		break
+		}
 	OLD_BACKUP_DIR=$(echo ${REPAIR_INC_MY_TIME%/.${REPAIR_MY_CONF}.ok}|cut -d ' ' -f1)
 	INC_BACKUP_DIR=$(echo ${REPAIR_INC_MY_TIME%/.${REPAIR_MY_CONF}.ok}|cut -d ' ' -f2)
 		INC_REPAIR_FROM_POST="$(awk '{if($1 == "from_lsn") {print $3}}' ${INC_BACKUP_DIR}/${REPAIR_MY_CONF}/${REPAIR_POST_FILE}) "
