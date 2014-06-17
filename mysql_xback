@@ -581,8 +581,9 @@ check_disk_size_number=1
 case $1 in
 	--backup|-bak)
 		check_system bak start
-		INNOBACKUP_BAKCUP ;;
+		INNOBACKUP_BAKCUP
 		check_system bak end
+	;;
 	--show|-p)
 		SHOW_BACKUP_TIME show ${2}
 	;;
