@@ -127,8 +127,8 @@ fi
 check_system () {
 [ "$1" == "bak" -o "$1" == "repair" ] && {
 
-	[ "$1" == "bak" ] && check_proc_name=" -bak| --backup"
-	[ "$1" == "repair" ] && check_proc_name=" -r| --repair"
+	[ "$1" == "bak" ] && check_proc_name="\-bak|--backup"
+	[ "$1" == "repair" ] && check_proc_name="\-r|--repair"
 
         [ "$2" == "start" ] && {
 if [ -f ${BAK_LOCK}.${1} ] && [ ! -z "$(ps -ef |grep `basename $0`|grep -v " $$ " |grep -v  " $! " |grep -E "${check_proc_name}" |grep -v grep)" ];then
