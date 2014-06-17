@@ -128,7 +128,7 @@ check_system () {
 [ "$1" == "bak" -o "$1" == "repair" ] && {
 
         [ "$2" == "start" ] && {
-if [ -f ${BAK_LOCK}.${1} ] && [ ! -z "$(ps -ef |grep `basename $0`|grep -v " $$ "|grep "${1}" |grep -v grep)" ];then
+if [ -f ${BAK_LOCK}.${1} ] && [ ! -z "$(ps -ef |grep `basename $0`|grep -v " $$ " |grep -v  " $! " |grep "${1}" |grep -v grep)" ];then
         echo "程序正在运行"
         exit 1
 else
