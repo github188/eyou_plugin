@@ -507,6 +507,7 @@ REPAIR_POST_FILE="xtrabackup_checkpoints"
 }
 
 REPAIR_CHECK_MYSQL () {
+CHECK_ALL_OR_INC
 REPAIR_MY_CONF=${1}
 if [[ "${MYSQL_DATABASE_CONF}" =~ ":${REPAIR_MY_CONF}:" ]] && [ ! -z "${REPAIR_MY_CONF}" ];then
 	:
