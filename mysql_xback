@@ -143,8 +143,9 @@ if [ -f ${BAK_LOCK}.${1} ];then
         [ "${while_number}" -eq "5" ] && break
         done
 else
-	[ "$1" == "bak" ] && check_proc_name="$(ps -A --format='%p%P%C%x%a' --width 2048 -w --sort pid|grep $0|grep -E "\-bak|--backup"|grep -v grep|grep -v " -c sh "|grep -v " $$ " | grep -c sh|awk '{printf("%d",$1)}')"
-	[ "$1" == "repair" ] && check_proc_name="$(ps -A --format='%p%P%C%x%a' --width 2048 -w --sort pid|grep $0|grep -E "\-r|--repair"|grep -v grep|grep -v " -c sh "|grep -v " $$ " | grep -c sh|awk '{printf("%d",$1)}')"
+#	[ "$1" == "bak" ] && check_proc_name="$(ps -A --format='%p%P%C%x%a' --width 2048 -w --sort pid|grep $0|grep -E "\-bak|--backup"|grep -v grep|grep -v " -c sh "|grep -v " $$ " | grep -c sh|awk '{printf("%d",$1)}')"
+#	[ "$1" == "repair" ] && check_proc_name="$(ps -A --format='%p%P%C%x%a' --width 2048 -w --sort pid|grep $0|grep -E "\-r|--repair"|grep -v grep|grep -v " -c sh "|grep -v " $$ " | grep -c sh|awk '{printf("%d",$1)}')"
+	:
 fi
 	
 	[ "${check_proc_name}" -gt "0" ] && {
