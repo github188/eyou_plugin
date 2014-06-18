@@ -134,7 +134,7 @@ check_system () {
 
 if [ -f ${BAK_LOCK}.${1} ];then
 	system_pid=$(head -1 ${BAK_LOCK}.${1})
-	check_proc_name="$(ps -A --format='%p%P%C%x%a' --width 2048 -w --sort pid|grep $0|grep " ${system_pid} "grep -v " $$ "|grep -c sh|awk '{printf("%d",$1)}')"
+	check_proc_name="$(ps -A --format='%p%P%C%x%a' --width 2048 -w --sort pid|grep $0|grep " ${system_pid} "|grep -v " $$ "|grep -c sh|awk '{printf("%d",$1)}')"
 fi
 	
 	[ "${check_proc_name}" -gt "0" ] && {
