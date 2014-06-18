@@ -127,17 +127,20 @@ fi
 check_system () {
 [ "$1" == "bak" -o "$1" == "repair" ] && {
 
-	[ "$1" == "bak" ] && check_proc_name="$(ps -A --format='%p%P%C%x%a' --width 2048 -w --sort pid|grep $0|grep -E "\-bak|--backup"|grep -v grep|grep -v " -c sh "|grep -v "$$" | grep -c sh|awk '{printf("%d",$1)}')"
-	[ "$1" == "repair" ] && check_proc_name="$(ps -A --format='%p%P%C%x%a' --width 2048 -w --sort pid|grep $0|grep -E "\-r|--repair"|grep -v grep|grep -v " -c sh "|grep -v "$$" | grep -c sh|awk '{printf("%d",$1)}')"
+	[ "$1" == "bak" ] && check_proc_name="$(ps -A --format='%p%P%C%x%a' --width 2048 -w --sort pid|grep $0|grep -E "\-bak|--backup"|grep -v grep|grep -v " -c sh "|grep -v " $$ " | grep -c sh|awk '{printf("%d",$1)}')"
+	[ "$1" == "repair" ] && check_proc_name="$(ps -A --format='%p%P%C%x%a' --width 2048 -w --sort pid|grep $0|grep -E "\-r|--repair"|grep -v grep|grep -v " -c sh "|grep -v " $$ " | grep -c sh|awk '{printf("%d",$1)}')"
 
         [ "$2" == "start" ] && {
 
 if [ -f ${BAK_LOCK}.${1} ];then
+	system_pid=$(head -1 ${BAK_LOCK}.${1})
+	check_proc_name="$(ps -A --format='%p%P%C%x%a' --width 2048 -w --sort pid|grep $0|grep " ${system_pid} "grep -v " $$ "|grep -c sh|awk '{printf("%d",$1)}')"
+fi
+	
 	[ "${check_proc_name}" -gt "0" ] && {
         echo "程序正在运行"
         exit 1
 	}
-fi
         echo $$ > ${BAK_LOCK}.${1}
                 }
         [ "$2" == "end" ] && {
