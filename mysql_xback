@@ -132,10 +132,10 @@ check_system () {
 
 if [ -f ${BAK_LOCK}.${1} ];then
 	system_pid=$(head -1 ${BAK_LOCK}.${1})
-        while [ -z ${check_proc_pid} ];do
+        while [ -z "${check_proc_pid}" ];do
         check_proc_pid="$(pstree ${system_pid})"
         while_number=$(($while_number+1))
-        [ -z ${check_proc_pid} ] && {
+        [ -z "${check_proc_pid}" ] && {
                 check_proc_name="0"
                 } || {
                 check_proc_name="$(echo -e ${check_proc_pid}|wc -l)"
@@ -310,7 +310,7 @@ do
 	MYSQL_VERSION=$($EYOU_MYSQL --defaults-file="${EYOU_MYSQL_CONF}/${DATACONF}" -s -e "status;"|grep 'Server version'|grep -o '5.*-'|awk -F'.' '{print $1"."$2}')
 	CHECK_MYSQL_XTRBAK_FILE ${MYSQL_VERSION}
 
-	if [ -z ${INC_BAK_TIME} ] && [ "${RUN_BAK_STATUS}" != "ALL_BAK" ] ;then
+	if [ -z "${INC_BAK_TIME}" ] && [ "${RUN_BAK_STATUS}" != "ALL_BAK" ] ;then
 	[ -f "${EYOU_INNOBAK_DIR_NAME}/INNOBAK_${INIT_BAK_TIME}/full_bak/.${DATACONF}.ok" ] || {
 	echo "$(date +%F" "%H:%M:%S) 检测上次备份${EYOU_INNOBAK_DIR_NAME}/INNOBAK_${INIT_BAK_TIME}/full_bak，未发现规定的结束文件，判定上次备份无效，将回退，本次备份动作也将回退。" >> ${LOG_NAME}
 	rm -rf ${EYOU_INNOBAK_DIR_NAME}/INNOBAK_${INIT_BAK_TIME}/full_bak
@@ -318,7 +318,7 @@ do
 	rm -rf ${EYOU_INNOBAK_DIR_NAME}/INNOBAK_${INIT_BAK_TIME}/INC_${DATE_TIME}
 	exit 1;
 	}
-	elif [ ! -z ${INC_BAK_TIME} ] && [ "${RUN_BAK_STATUS}" != "ALL_BAK" ] ;then
+	elif [ ! -z "${INC_BAK_TIME}" ] && [ "${RUN_BAK_STATUS}" != "ALL_BAK" ] ;then
 	[ -f "${EYOU_INNOBAK_DIR_NAME}/INNOBAK_${INIT_BAK_TIME}/INC_${INC_BAK_TIME}/.${DATACONF}.ok" ] || {
 	echo "$(date +%F" "%H:%M:%S) 检测上次备份${EYOU_INNOBAK_DIR_NAME}/INNOBAK_${INIT_BAK_TIME}/INC_${INC_BAK_TIME}，未发现规定的结束文件，判定上次备份无效，将回退，本次备份动作也将回退。" >> ${LOG_NAME}
 	rm -rf ${EYOU_INNOBAK_DIR_NAME}/INNOBAK_${INIT_BAK_TIME}/INC_${INC_BAK_TIME}
@@ -348,7 +348,7 @@ do
 	}	
 	[ "${RUN_BAK_STATUS}" == "INC_BAK" ] && {
 		[ -d "${EYOU_INNOBAK_DIR_NAME}/INNOBAK_${INIT_BAK_TIME}/INC_${DATE_TIME}" ] || mkdir -p ${EYOU_INNOBAK_DIR_NAME}/INNOBAK_${INIT_BAK_TIME}/INC_${DATE_TIME}
-		if [ -z ${INC_BAK_TIME} ];then
+		if [ -z "${INC_BAK_TIME}" ];then
 		NEX_TIME="INNOBAK_${INIT_BAK_TIME}/full_bak"
 		END_MESSAGE="${EYOU_INNOBAK_DIR_NAME}/INNOBAK_${INIT_BAK_TIME}/full_bak/.${DATACONF}.ok"
 		echo "$(date +%F" "%H:%M:%S) 第一次基于全量备份的增量备份 ${DATACONF} 开始，它的父目录为 ${EYOU_INNOBAK_DIR_NAME}/INNOBAK_${INIT_BAK_TIME}/full_bak/${DATACONF} " >> ${LOG_NAME}
@@ -390,7 +390,7 @@ FULL_BACKUP_DIR_NAME=$(find ${EYOU_INNOBAK_DIR_NAME} -type d -name "INNOBAK_[0-9
 			DATANAME="$(echo $i|cut -d ':' -f1)"
 			DATACONF="$(echo $i|cut -d ':' -f2)"
 			MYSQL_VERSION_CONF="$(echo $i|cut -d ':' -f3)"
-			if [ "${DATACONF}" == "${2}" ] || [ -z ${2} ];then
+			if [ "${DATACONF}" == "${2}" ] || [ -z "${2}" ];then
 			[ -f "${FULL_BACKUP_DIR}/full_bak/.${DATACONF}.ok" ] && {
 			echo -e "基于 \033[0;32m${DATACONF}\033[0m 配置 备份 \033[0;36m${DATANAME}\033[0m 数据库的内容如下: "
 			echo $(date -d "1970-01-01 UTC ${ALL_TIME_NAME} seconds" +%F" "%H:%M:%S" "%w) ${DATANAME} ${FULL_BACKUP_DIR}/full_bak/${DATACONF} full bak repair_id: [ ${FULL_BACKUP_DIR#*INNOBACKUPEX/} ]
