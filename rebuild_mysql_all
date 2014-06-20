@@ -7,6 +7,11 @@ EYOU_ETC="$EYOU_DIR/etc/eyou_mail.ini"
 #MYSQL_HOST="127.0.0.1"
 MYSQL_HOST=""
 #EYOU_MAIL_MYSQL="eyou_mail"
+[ -f "${EYOU_ETC}" ] || {
+	echo "not find ${EYOU_ETC} file."
+	exit 1
+}
+
 EYOU_MAIL_MYSQL="$(grep '^db_name' ${EYOU_ETC}|cut -d '=' -f2|cut -d '"' -f2)"
 #EYOU_MAIL_PORT="3306"
 EYOU_MAIL_PORT="$(grep '^db_mysql_sock' ${EYOU_ETC}|cut -d '=' -f2|cut -d '"' -f2)"
