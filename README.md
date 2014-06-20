@@ -16,6 +16,8 @@
 	
 	./mysql_xback
 			--backup|-bak	backup mysql database
+					ALLNOW   NOW ALL BAK
+					INCNOW	 NOW INC BAK
 			--show|-p	show backup message
 			--repair|-r	repair mysql database
 	--backup 实现
@@ -25,6 +27,7 @@
 	当全备份由于某种原因在指定的时间（配置几点备份） 超过后  之后的备份全部基于上一次的增量备份进行增量备份，并且每天的规定时间会尝试进行全量备份。 并且 全备份目录个数小于配置的删除全备份次数 则不会删除全备份，避免全备失败  到规定时间后 删除有用备份。
 	当增量备份出现失败，如果是磁盘满了 那就永远不会进行备份。
 	备份时如果程序bak已在运行，则新程序会退出。
+	添加立即执行全备份/增量备份机制	 ALLNOW / INCNOW
 	
 
 	--show 实现
