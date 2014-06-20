@@ -18,8 +18,10 @@
 			--backup|-bak	backup mysql database
 					ALLNOW   NOW ALL BAK
 					INCNOW	 NOW INC BAK
-			--show|-p	show backup message
-			--repair|-r	repair mysql database
+                        --show|-p       show backup message
+                                        my.cnf / my_index.cnf /my_log.cnf
+                        --repair|-r     repair mysql database
+                                        my.cnf / my_index.cnf /my_log.cnf"
 	--backup 实现
 	全备份 会统计mysql数据库的大小（不包含binlog以及err文件） 判断备份目录所在磁盘大于  则进行备份，否则退出。
 	增量备份  会统计上次备份的大小	所在磁盘 大于  则备份，否则退出。

@@ -631,7 +631,9 @@ case $1 in
 					ALLNOW   NOW ALL BAK
 					INCNOW	 NOW INC BAK
 			--show|-p	show backup message
-			--repair|-r	repair mysql database"
+					my.cnf / my_index.cnf /my_log.cnf
+			--repair|-r	repair mysql database
+					my.cnf / my_index.cnf /my_log.cnf"
 	;;
 esac
 		
