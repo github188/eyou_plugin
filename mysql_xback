@@ -97,7 +97,7 @@ if [ -z "${RUN_BAK_STATUS}" ];then
 	INIT_BAK_TIME="0"
 	for ALL_BAK_DIR in ${ALL_BAK_DIR_NAME}
 		do
-		ALL_BAK_TIME="${ALL_BAK_DIR#*/INNOBAK_}"
+		ALL_BAK_TIME="${ALL_BAK_DIR##*/INNOBAK_}"
 		[ ${ALL_BAK_TIME} -gt ${INIT_BAK_TIME} ] && INIT_BAK_TIME="${ALL_BAK_TIME}"
 		[ $((${DATE_TIME}-${INIT_BAK_TIME})) -gt $((${DEL_BAK_Day}*${ALL_BAK_Day}*${ALL_BAK_STAMP})) -a -z "${RM_BAK_STATUS}" -a "${ALL_BAK_Day}" -ne "0" -a "${DEL_BAK_Day}" -lt "$(find ${EYOU_INNOBAK_DIR_NAME} -type d -name "INNOBAK_[0-9]*"|wc -l)" ] && RM_BAK_STATUS="INNOBAK_${INIT_BAK_TIME}"
 		done
@@ -113,7 +113,7 @@ if [ -z "${RUN_BAK_STATUS}" ];then
 	INC_BAK_TIME="0"
 	for INC_BAK_DIR in ${INC_BAK_DIR_NAME}
 		do
-		INC_TIME="${INC_BAK_DIR#*/INC_}"
+		INC_TIME="${INC_BAK_DIR##*/INC_}"
 		[ ${INC_TIME} -gt ${INC_BAK_TIME} ] && {
 			 INC_BAK_TIME="${INC_TIME}"
 			}
@@ -384,7 +384,7 @@ FULL_BACKUP_DIR_NAME=$(find ${EYOU_INNOBAK_DIR_NAME} -type d -name "INNOBAK_[0-9
 			} || {
 	for FULL_BACKUP_DIR in ${FULL_BACKUP_DIR_NAME}
 		do
-		ALL_TIME_NAME=${FULL_BACKUP_DIR#*_}
+		ALL_TIME_NAME=${FULL_BACKUP_DIR##*_}
 		for i in $(echo ${MYSQL_DATABASE_CONF}|sed 's/;/ /g')
 			do
 			DATANAME="$(echo $i|cut -d ':' -f1)"
@@ -410,7 +410,7 @@ INC_BACKUP_DIR_NAME=$(find ${EYOU_INNOBAK_DIR_NAME}/${ROOT_TIME_NAME} -type d -n
 	[ -z "${INC_BACKUP_DIR_NAME}" ] || {
 	for INC_BACKUP_DIR in ${INC_BACKUP_DIR_NAME}
 		do
-		INC_TIME_NAME=${INC_BACKUP_DIR#*INC_}
+		INC_TIME_NAME=${INC_BACKUP_DIR##*INC_}
 		[ -f "${INC_BACKUP_DIR}/.${DATACONF_NAME}.ok" ] && {
 		echo $(date -d "1970-01-01 UTC ${INC_TIME_NAME} seconds" +%F" "%H:%M:%S" "%w) ${INC_BACKUP_DIR}/${DATACONF} inc bak root is:  ${EYOU_INNOBAK_DIR_NAME}/$(cat ${EYOU_INNOBAK_DIR_NAME}/${ROOT_TIME_NAME}/INC_${INC_TIME_NAME}/.*.ok |sed -n 1p|sed 's/_end//g')/${DATACONF}
 		}
@@ -500,13 +500,13 @@ REPAIR_POST_FILE="xtrabackup_checkpoints"
 		if [ -z "$(echo ${OLD_BACKUP_DIR}|grep '_end$')" ] && [ "${INC_REPAIR_FROM_POST}" -ge "${ALL_REPAIR_LAST_POST}" -o "${INC_REPAIR_FROM_POST}" -ge "${ALL_REPAIR_TO_POST}" ] ;then
 		INC_MYSQL_APPLY_LOG  ${EYOU_MYSQL_CONF}/${REPAIR_MY_CONF} ${EYOU_INNOBAK_DIR_NAME}/${REPAIR_MY_TIME}/full_bak/${REPAIR_MY_CONF} ${INC_BACKUP_DIR}/${REPAIR_MY_CONF} ${EYOU_INNOBAK_DIR_NAME}/${REPAIR_MY_CONF}
 		[ $? -eq 0 ] && repair_exit="0" || repair_exit="1"
-		REPAIR_MY_TIME_NAME=${INC_BACKUP_DIR#${EYOU_INNOBAK_DIR_NAME}/${REPAIR_MY_TIME}/}
+		REPAIR_MY_TIME_NAME=${INC_BACKUP_DIR##${EYOU_INNOBAK_DIR_NAME}/${REPAIR_MY_TIME}/}
 		elif [ ! -z "$(echo ${OLD_BACKUP_DIR}|grep '_end$')" ] && [ "${INC_REPAIR_FROM_POST}" -ge "${ALL_REPAIR_LAST_POST}" -o "${INC_REPAIR_FROM_POST}" -ge "${ALL_REPAIR_TO_POST}" ] ;then
 		ENDINC_MYSQL_APPLY_LOG ${EYOU_MYSQL_CONF}/${REPAIR_MY_CONF} ${EYOU_INNOBAK_DIR_NAME}/${REPAIR_MY_TIME}/full_bak/${REPAIR_MY_CONF} ${INC_BACKUP_DIR}/${REPAIR_MY_CONF} ${EYOU_INNOBAK_DIR_NAME}/${REPAIR_MY_CONF}
 		[ $? -eq 0 ] && repair_exit="0" || repair_exit="1"
 		elif [ -z "$(echo ${OLD_BACKUP_DIR}|grep '_end$')" ] && [ "${INC_REPAIR_FROM_POST}" -lt "${ALL_REPAIR_LAST_POST}" -a "${INC_REPAIR_FROM_POST}" -lt "${ALL_REPAIR_TO_POST}" ] ;then
 		echo "检测到增量备份的from 小于 全备的last 可能已经将此次增量恢复，跳过..."
-		REPAIR_MY_TIME_NAME=${INC_BACKUP_DIR#${EYOU_INNOBAK_DIR_NAME}/${REPAIR_MY_TIME}/}
+		REPAIR_MY_TIME_NAME=${INC_BACKUP_DIR##${EYOU_INNOBAK_DIR_NAME}/${REPAIR_MY_TIME}/}
 		repair_exit="0"
 		elif [ ! -z "$(echo ${OLD_BACKUP_DIR}|grep '_end$')" ] && [ "${INC_REPAIR_FROM_POST}" -lt "${ALL_REPAIR_LAST_POST}" -a "${INC_REPAIR_FROM_POST}" -lt "${ALL_REPAIR_TO_POST}" ] ;then
 		echo "检测到增量备份的from 小于 全备的last 可能已经将此次增量恢复，跳过..."
