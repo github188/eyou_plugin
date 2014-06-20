@@ -393,7 +393,7 @@ FULL_BACKUP_DIR_NAME=$(find ${EYOU_INNOBAK_DIR_NAME} -type d -name "INNOBAK_[0-9
 			if [ "${DATACONF}" == "${2}" ] || [ -z "${2}" ];then
 			[ -f "${FULL_BACKUP_DIR}/full_bak/.${DATACONF}.ok" ] && {
 			echo -e "基于 \033[0;32m${DATACONF}\033[0m 配置 备份 \033[0;36m${DATANAME}\033[0m 数据库的内容如下: "
-			echo $(date -d "1970-01-01 UTC ${ALL_TIME_NAME} seconds" +%F" "%H:%M:%S" "%w) ${DATANAME} ${FULL_BACKUP_DIR}/full_bak/${DATACONF} full bak repair_id: [ ${FULL_BACKUP_DIR#*INNOBACKUPEX/} ]
+			echo $(date -d "1970-01-01 UTC ${ALL_TIME_NAME} seconds" +%F" "%H:%M:%S" "%w) ${DATANAME} ${FULL_BACKUP_DIR}/full_bak/${DATACONF} full bak repair_id: [ ${FULL_BACKUP_DIR##*INNOBACKUPEX/} ]
 			}
 			[ "${1}" != "repair" ] && SHOW_ONE_BACKUP_TIME ${FULL_BACKUP_DIR} ${ALL_TIME_NAME} ${DATACONF}
 			echo
