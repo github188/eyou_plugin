@@ -565,9 +565,9 @@ CHECK_DISK_SIZE () {
 CHECK_DIR="$(cd ${EYOU_INNOBAK_DIR_NAME};pwd -P)"
 for DISK_SAN_1 in $(mount -l |awk '{print $3}');do [[ "${CHECK_DIR}" =~ "${DISK_SAN_1}/" ]] && CHECK_DISK_DIR_NAME_MOUNT="${DISK_SAN_1}";done
 [ -z "${CHECK_DISK_DIR_NAME_MOUNT}" ] && {
-	CHECK_DISK_Avail="$(df -k|awk '{if($6=="/"){print $4}}')"
+	CHECK_DISK_Avail="$(df -Pk|awk '{if($6=="/"){print $4}}')"
 	} || {
-	CHECK_DISK_Avail="$(df -k|awk '{if($6=='\"${CHECK_DISK_DIR_NAME_MOUNT}\"'){print $4}}')"
+	CHECK_DISK_Avail="$(df -Pk|awk '{if($6=='\"${CHECK_DISK_DIR_NAME_MOUNT}\"'){print $4}}')"
 	}
 if [ "${1}" == "ALL_BAK" ];then
 DATA_DIR="$(for i in ${MYSQL_DATABASE_CONF};do DATACONF="$(echo $i|cut -d ':' -f2)";awk '{if($1=="datadir") {print $3}}' ${EYOU_MYSQL_CONF}/${DATACONF};done)"
@@ -589,9 +589,9 @@ DATA_DIR="$(awk '{if($1=="datadir") {print $3}}' ${EYOU_MYSQL_CONF}/${2})"
 DATA_DIR_NAME="$(cd ${DATA_DIR};pwd -P)"
 for DISK_SAN_2 in $(mount -l |awk '{print $3}');do [[ "${DATA_DIR_NAME}" =~ "${DISK_SAN_2}/" ]] && DATA_DIR_NAME_MOUNT="${DISK_SAN_2}";done
 [ -z "${DATA_DIR_NAME_MOUNT}" ] && {
-	CHECK_DATA_Avail="$(df -k|awk '{if($6=="/"){print $4}}')"
+	CHECK_DATA_Avail="$(df -Pk|awk '{if($6=="/"){print $4}}')"
 	} || {
-	CHECK_DATA_Avail="$(df -k|awk '{if($6=='\"${DATA_DIR_NAME_MOUNT}\"'){print $4}}')"
+	CHECK_DATA_Avail="$(df -Pk|awk '{if($6=='\"${DATA_DIR_NAME_MOUNT}\"'){print $4}}')"
 	}
 REPAIR_MYSQL_SIZE=$(find ${3} -type d -name ${2} -exec du -sk {} \;|awk 'BEGIN{number=0}{number+=$1}END{print number}')
 [ "${CHECK_DATA_Avail}" -gt "${REPAIR_MYSQL_SIZE}" ] || {
