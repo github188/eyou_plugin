@@ -304,7 +304,7 @@ do
 	MYSQL_VERSION_CONF="$(echo $i|cut -d ':' -f3)"
 	${EYOU_DIR}/opt/mysql/bin/mysqladmin --defaults-file="${EYOU_MYSQL_CONF}/${DATACONF}" ping >/dev/null 2>&1
 	[ "${?}" -eq "0" ] || {
-		echo "$(date +%F" "%H:%M:%S) ${DATANAME} 数据库未启动。" >> ${LOG_NAME}
+		echo "$(date +%F" "%H:%M:%S) 基于 ${DATACONF} 的 ${DATANAME} 数据库未启动。" >> ${LOG_NAME}
 		exit 1
 		}
 	MYSQL_VERSION=$($EYOU_MYSQL --defaults-file="${EYOU_MYSQL_CONF}/${DATACONF}" -s -e "status;"|grep 'Server version'|grep -o '5.*-'|awk -F'.' '{print $1"."$2}')
