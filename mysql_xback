@@ -610,6 +610,8 @@ check_disk_size_number=1
 case $1 in
 	--backup|-bak)
 		check_system bak start
+		[ "${2}" == "ALLNOW" ] && RUN_BAK_STATUS="ALL_BAK"
+		[ "${2}" == "INCNOW" ] && INC_BAK_STAMP="1"
 		INNOBACKUP_BAKCUP
 		check_system bak end
 	;;
@@ -626,6 +628,8 @@ case $1 in
 	*)
 		echo "$0
 			--backup|-bak	backup mysql database
+					ALLNOW   NOW ALL BAK
+					INCNOW	 NOW INC BAK
 			--show|-p	show backup message
 			--repair|-r	repair mysql database"
 	;;
