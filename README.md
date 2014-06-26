@@ -13,6 +13,7 @@
 
 
 备份mysql 基于innobackupex 的备份。 查看，恢复 等。
+使用前 如果是mysql 5.1 版本 升级过来的    请将 mysql 命令  ln -s 到 /usr/bin/下，避免出现失败～
 	
 	./mysql_xback
 			--backup|-bak	backup mysql database
