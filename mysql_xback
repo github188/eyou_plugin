@@ -91,7 +91,7 @@ CHECK_ALL_OR_INC () {
 	echo "please install perl-DBD-MySQL ."
 	exit 1
 }
-ALL_BAK_DIR_NAME="$(find ${EYOU_INNOBAK_DIR_NAME}/INNOBAK_[0-9]* -type d -name INNOBAK_[0-9]*)"
+ALL_BAK_DIR_NAME="$(find ${EYOU_INNOBAK_DIR_NAME}/INNOBAK_[0-9]* -type d -name INNOBAK_[0-9]* >/dev/null 2>&1)"
 [ -z "${ALL_BAK_DIR_NAME}" ] && RUN_BAK_STATUS="ALL_BAK"
 if [ -z "${RUN_BAK_STATUS}" ];then
 	INIT_BAK_TIME="0"
@@ -285,11 +285,17 @@ MYSQL_VERSION=${1}
 	[ -f ${EYOU_XTRBACK_BIN55}/xtrabackup ] && {
 		unlink /usr/bin/xtrabackup >/dev/null 2>&1;
 		ln -s ${EYOU_XTRBACK_BIN55}/xtrabackup /usr/bin/
-			}|| {
+			} || {
 		echo "${EYOU_XTRBACK_BIN55}/xtrabackup not find file. "
 		exit 1
 		}
 	fi
+	[ -f /usr/bin/mysql ] && {
+		unlink /usr/bin/mysql >/dev/null 2>&1
+		ln -s ${EYOU_MYSQL} /usr/bin
+	} || {
+		ln -s ${EYOU_MYSQL} /usr/bin
+	}
 
 }
 
