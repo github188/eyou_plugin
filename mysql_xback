@@ -91,7 +91,7 @@ CHECK_ALL_OR_INC () {
 	echo "please install perl-DBD-MySQL ."
 	exit 1
 }
-ALL_BAK_DIR_NAME="$(find ${EYOU_INNOBAK_DIR_NAME}/INNOBAK_[0-9]* -type d -name INNOBAK_[0-9]* >/dev/null 2>&1)"
+ALL_BAK_DIR_NAME="$(find ${EYOU_INNOBAK_DIR_NAME}/INNOBAK_[0-9]* -type d -name INNOBAK_[0-9]* 2>/dev/null )"
 [ -z "${ALL_BAK_DIR_NAME}" ] && RUN_BAK_STATUS="ALL_BAK"
 if [ -z "${RUN_BAK_STATUS}" ];then
 	INIT_BAK_TIME="0"
