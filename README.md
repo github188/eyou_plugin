@@ -1,4 +1,5 @@
 2014-07-22 更新 从mtalog中导出指定时间内remote mailfrom:  rcpt to: 已便导入反垃圾网关内
+
 	./export_remote_user
 			export 		导出
 			import		导入
