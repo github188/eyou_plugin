@@ -1,0 +1,150 @@
+#!/usr/bin/env bash
+# -*- zh_CN.UTF-8 -*-
+# @Date    : 2014-07-16 19:20:38
+# @Author  : zert (mailbad@163.com)
+# @Link    : https://github.com/mailbad
+# @Version : $Id$ (0.1)
+# Explain  : [ Rebuile Openssl Update ]
+
+###########
+# Config  #
+###########
+# Script disaply/debug 0-disable 1-enable
+Script_Display="1"
+Script_Debug="0"
+# Script Thread Number
+Script_Thread_Num="4"
+Script_Fifo_Dir="/tmp/Export_RCPT_FIFO"
+#openssl config version
+Openssl_Version="1.0.1e"
+Openssl_Update_Dir="/usr/local/openssl"
+
+###########
+# Default #
+###########
+# Script Route
+Script_Path="$(cd $(dirname ${0});pwd -P)"
+
+# Init Script echo message
+# State Mode: OK ERR NO OK_D ERR_D NO_D
+# Debug/display Mode: 0 1
+# Test cases: [ INIT_ECHO OK 0 "this is test" 1 test.txt ]
+# Explain : [ INIT_ECHO State_ok Debug_off "message" display_on fileroute_on ]
+INIT_ECHO () {
+	local ECHO_State="${1}"
+	local ECHO_Debug="${2}"
+	local ECHO_Message="${3}"
+	local ECHO_display="${4}"
+	local ECHO_Filename="${5}"
+	[ -z "${ECHO_display}" ] && local ECHO_display="1";
+	if [ "${ECHO_State}" == "OK" ] || [ "${ECHO_State}" == "ok" ]; then
+		local ECHO_State_Message="[\033[0;32m ${ECHO_Message} \033[0m]"
+	elif [ "${ECHO_State}" == "ERR" ] || [ "${ECHO_State}" == "err" ]; then
+		local ECHO_State_Message="[\033[0;31m$(date +'%F %H:%M:%S') ${ECHO_Message} \033[0m]"
+	elif [ "${ECHO_State}" == "NO" ] || [ "${ECHO_State}" == "no" ]; then
+		local ECHO_State_Message="[ ${ECHO_Message} ]"
+	elif [ "${ECHO_State}" == "OK_D" ] || [ "${ECHO_State}" == "ok_d" ]; then
+		local ECHO_State_Message="$(date +'%F %H:%M:%S')		[\033[0;32m ${ECHO_Message} \033[0m]"
+	elif [ "${ECHO_State}" == "ERR_D" ] || [ "${ECHO_State}" == "err_d" ]; then
+		local ECHO_State_Message="$(date +'%F %H:%M:%S')		[\033[0;31m$(date +'%F %H:%M:%S') ${ECHO_Message} \033[0m]"
+	elif [ "${ECHO_State}" == "NO_D" ] || [ "${ECHO_State}" == "no_d" ]; then
+		local ECHO_State_Message="$(date +'%F %H:%M:%S')		[ ${ECHO_Message} ]"
+	else
+		return 1;
+	fi
+
+	if [ "${ECHO_Debug}" -eq "0" ] && [ "${ECHO_display}" -eq "1" ] && [ -z "${ECHO_Filename}" ]; then
+		[ "${Script_Display}" -eq "1" ] && echo -e ${ECHO_State_Message}
+		#echo -e ${ECHO_State_Message} >> ${ECHO_Filename}
+	elif [ "${ECHO_Debug}" -eq "0" ] && [ "${ECHO_display}" -eq "0" ] && [ -z "${ECHO_Filename}" ]; then
+		#echo -e ${ECHO_State_Message}
+		#echo -e ${ECHO_State_Message} >> ${ECHO_Filename}
+		:
+	elif [ "${ECHO_Debug}" -eq "0" ] && [ "${ECHO_display}" -eq "1" ] && [ ! -z "${ECHO_Filename}" ]; then
+		[ "${Script_Display}" -eq "1" ] && echo -e ${ECHO_State_Message}
+		wait;
+		echo -e ${ECHO_State_Message} >> ${ECHO_Filename}
+	elif [ "${ECHO_Debug}" -eq "0" ] && [ "${ECHO_display}" -eq "0" ] && [ ! -z "${ECHO_Filename}" ]; then
+		#[ "${Script_Display}" -eq "1" ] && echo -e ${ECHO_State_Message}
+		echo -e ${ECHO_State_Message} >> ${ECHO_Filename}
+	elif [ "${ECHO_Debug}" -eq "1" ] && [ "${ECHO_display}" -eq "1" ] && [ -z "${ECHO_Filename}" ]; then
+		[ "${Script_Debug}" -eq "1" ] && echo -e ${ECHO_State_Message}
+		#echo -e ${ECHO_State_Message} >> ${ECHO_Filename}
+	elif [ "${ECHO_Debug}" -eq "1" ] && [ "${ECHO_display}" -eq "0" ] && [ -z "${ECHO_Filename}" ]; then
+		#[ "${Script_Debug}" -eq "1" ] && echo -e ${ECHO_State_Message}
+		#echo -e ${ECHO_State_Message} >> ${ECHO_Filename}
+		:
+	elif [ "${ECHO_Debug}" -eq "1" ] && [ "${ECHO_display}" -eq "1" ] && [ ! -z "${ECHO_Filename}" ]; then
+		[ "${Script_Debug}" -eq "1" ] && echo -e ${ECHO_State_Message}
+		wait;
+		echo -e ${ECHO_State_Message} >> ${ECHO_Filename}
+	elif [ "${ECHO_Debug}" -eq "1" ] && [ "${ECHO_display}" -eq "0" ] && [ ! -z "${ECHO_Filename}" ]; then
+		#[ "${Script_Debug}" -eq "1" ] && echo -e ${ECHO_State_Message}
+		echo -e ${ECHO_State_Message} >> ${ECHO_Filename}
+	else
+		return 1;
+	fi
+}
+
+INIT_FIFO () {
+	local INIT_COMMAND="${1}"
+	local INIT_FOR_COMMAND="${2}"
+	[ -d "${Script_Fifo_Dir}" ] || mkdir -p ${Script_Fifo_Dir}
+	local Script_Fifo_File="${Script_Fifo_File}/$$.pid"
+	mkfifo ${Script_Fifo_File}
+	exec 6<>"${Script_Fifo_File}"
+	rm ${Script_Fifo_File}
+	for (( i = 0; i < ${Script_Thread_Num} ; i++ )); do
+		echo >&6
+	done
+	wait
+
+	for Script_Thread in $(echo -e "${INIT_FOR_COMMAND}"); do
+	read -u6
+	{
+		${INIT_COMMAND}
+	wait;echo >&6
+	} &
+	done
+	wait;exec 6>&-
+	return 0
+}
+
+Update_Openssl_Dir () {
+	if [ -d ${Openssl_Update_Dir} ];then
+		Openssl_Old_Bak_Dir="${Openssl_Update_Dir}/Old"
+		[ -d ${Openssl_Old_Bak_Dir} ] || mkdir ${Openssl_Old_Bak_Dir}
+		mv /usr/bin/openssl ${Openssl_Old_Bak_Dir}
+		mv /usr/include/openssl ${Openssl_Old_Bak_Dir}
+		ln -s ${Openssl_Update_Dir}/bin/openssl /usr/bin/
+		ln -s ${Openssl_Update_Dir}/include/openssl /usr/include/
+		INIT_ECHO "NO" "0" "${Openssl_Update_Dir}/lib" "0" /etc/ld.so.conf
+		local Ldconfig_Update=$(ldconfig -V)
+		INIT_ECHO "NO" "1" "${Ldconfig_Update}"
+		local Openssl_V_A=$(openssl version -a)
+		INIT_ECHO "NO" "1" "${Openssl_V_A}"
+	else
+		INIT_ECHO "ERR_D" "0" "${Openssl_Update_Dir} not find dir."
+		exit 1
+	fi
+}
+
+Update_Openssl_Lib () {
+	for i in $(find /usr/lib* -type f -name *.${Openssl_Version})
+	do
+		local Openssl_file=${i}
+		unset i
+		local Openssl_Md5sum=$(md5sum ${Openssl_file}|awk '{print $1}')
+		INIT_FIFO "" "$(find /usr/lib* -type l)"
+	done
+		local Ldconfig_Update=$(ldconfig -V)
+		INIT_ECHO "NO" "1" "${Ldconfig_Update}"
+		INIT_ECHO "OK_D" "0" "Openssl Update Success."
+}
+
+[ "${1}" == "-xx" ] && Script_Debug=1
+
+Update_Openssl_Dir
+Update_Openssl_Lib
+
+#unset Script_Debug

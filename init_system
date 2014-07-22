@@ -1,0 +1,119 @@
+#!/usr/bin/env bash
+# -*- en_US.UTF-8 -*-
+# @Date    : 2014-07-15 15:12:36
+# @Author  : zert (mailbad@163.com liguopeng@eyou.net)
+# @Link    : https://github.com/mailbad
+# @Version : $Id$ (0.1)
+# Explain  : [ now init system ]
+
+###########
+# Config  #
+###########
+# Script disaply/debug 0-disable 1-enable
+Script_Display="1"
+Script_Debug="0"
+# System SELINUX disabled/targeted/enforcing/skip
+System_Selinux="disabled"
+# System Leve Version
+System_Leve="3"
+# System Leve Version Run Server :chkconfig
+System_Run=":messagebus:network:sshd:xinetd:crond:eyou_mail:gw_init:"
+# System Port ACCEPT : iptables
+System_Port="80:25:110:143:995:993:465:1935:22"
+# System RootLoin no/yes/skip ;PermitRootLogin sshd_config
+System_RootLogin="no"
+# System User Login ACCEPT  : passwd -l/-u lock user.
+System_Userlogin="root:eyou"
+###########
+# Default #
+###########
+# Script Route
+Script_Path="$(cd $(dirname ${0});pwd -P)"
+# Script Leve Version
+Script_Leve=""
+
+System_Etc="/etc"
+System_Conf_Inittab="${System_Etc}/inittab"
+System_Conf_Sudoers="${System_Etc}/sudoers"
+System_Conf_Selinux="${System_Etc}/selinux/config"
+System_Conf_Sshd="${System_Etc}/ssh/sshd_config"
+
+# Init Script echo message
+# State Mode: OK ERR NO OK_D ERR_D NO_D
+# Debug/display Mode: 0 1
+# Test cases: [ INIT_ECHO OK 0 "this is test" 1 test.txt ]
+# Explain : [ INIT_ECHO State_ok Debug_off "message" display_on fileroute_on ]
+INIT_ECHO () {
+	local ECHO_State="${1}"
+	local ECHO_Debug="${2}"
+	local ECHO_Message="${3}"
+	local ECHO_display="${4}"
+	local ECHO_Filename="${5}"
+	[ -z "${ECHO_display}" ] && local ECHO_display="1";
+	if [ "${ECHO_State}" == "OK" ] || [ "${ECHO_State}" == "ok" ]; then
+		local ECHO_State_Message="[\033[0;32m ${ECHO_Message} \033[0m]"
+	elif [ "${ECHO_State}" == "ERR" ] || [ "${ECHO_State}" == "err" ]; then
+		local ECHO_State_Message="[\033[0;31m$(date +'%F %H:%M:%S') ${ECHO_Message} \033[0m]"
+	elif [ "${ECHO_State}" == "NO" ] || [ "${ECHO_State}" == "no" ]; then
+		local ECHO_State_Message="[ ${ECHO_Message} ]"
+	elif [ "${ECHO_State}" == "OK_D" ] || [ "${ECHO_State}" == "ok_d" ]; then
+		local ECHO_State_Message="$(date +'%F %H:%M:%S')		[\033[0;32m ${ECHO_Message} \033[0m]"
+	elif [ "${ECHO_State}" == "ERR_D" ] || [ "${ECHO_State}" == "err_d" ]; then
+		local ECHO_State_Message="$(date +'%F %H:%M:%S')		[\033[0;31m$(date +'%F %H:%M:%S') ${ECHO_Message} \033[0m]"
+	elif [ "${ECHO_State}" == "NO_D" ] || [ "${ECHO_State}" == "no_d" ]; then
+		local ECHO_State_Message="$(date +'%F %H:%M:%S')		[ ${ECHO_Message} ]"
+	else
+		return 1;
+	fi
+
+	if [ "${ECHO_Debug}" -eq "0" ] && [ "${ECHO_display}" -eq "1" ] && [ -z "${ECHO_Filename}" ]; then
+		[ "" -eq == "1" ] && echo -e ${ECHO_State_Message}
+		#echo -e ${ECHO_State_Message} >> ${ECHO_Filename}
+	elif [ "${ECHO_Debug}" -eq "0" ] && [ "${ECHO_display}" -eq "0" ] && [ -z "${ECHO_Filename}" ]; then
+		#echo -e ${ECHO_State_Message}
+		#echo -e ${ECHO_State_Message} >> ${ECHO_Filename}
+		:
+	elif [ "${ECHO_Debug}" -eq "0" ] && [ "${ECHO_display}" -eq "1" ] && [ ! -z "${ECHO_Filename}" ]; then
+		[ "" -eq == "1" ] && echo -e ${ECHO_State_Message}
+		wait;
+		echo -e ${ECHO_State_Message} >> ${ECHO_Filename}
+	elif [ "${ECHO_Debug}" -eq "0" ] && [ "${ECHO_display}" -eq "0" ] && [ ! -z "${ECHO_Filename}" ]; then
+		#[ "" -eq == "1" ] && echo -e ${ECHO_State_Message}
+		echo -e ${ECHO_State_Message} >> ${ECHO_Filename}
+	elif [ "${ECHO_Debug}" -eq "1" ] && [ "${ECHO_display}" -eq "1" ] && [ -z "${ECHO_Filename}" ]; then
+		[ "${Script_Debug}" -eq "1" ] && echo -e ${ECHO_State_Message}
+		#echo -e ${ECHO_State_Message} >> ${ECHO_Filename}
+	elif [ "${ECHO_Debug}" -eq "1" ] && [ "${ECHO_display}" -eq "0" ] && [ -z "${ECHO_Filename}" ]; then
+		#[ "${Script_Debug}" -eq "1" ] && echo -e ${ECHO_State_Message}
+		#echo -e ${ECHO_State_Message} >> ${ECHO_Filename}
+		:
+	elif [ "${ECHO_Debug}" -eq "1" ] && [ "${ECHO_display}" -eq "1" ] && [ ! -z "${ECHO_Filename}" ]; then
+		[ "${Script_Debug}" -eq "1" ] && echo -e ${ECHO_State_Message}
+		wait;
+		echo -e ${ECHO_State_Message} >> ${ECHO_Filename}
+	elif [ "${ECHO_Debug}" -eq "1" ] && [ "${ECHO_display}" -eq "0" ] && [ ! -z "${ECHO_Filename}" ]; then
+		#[ "${Script_Debug}" -eq "1" ] && echo -e ${ECHO_State_Message}
+		echo -e ${ECHO_State_Message} >> ${ECHO_Filename}
+	else
+		return 1;
+	fi
+}
+
+#unset Script_Debug
+
+if [ "${System_Selinux}" != "skip" ] ;then
+	System_Value_Selinux=$(awk -F'=' '{if($1=="SELINUX"){print $2}}' ${System_Conf_Selinux})
+	[ "${System_Selinux}" == "${System_Value_Selinux}" ] && break;
+	sed -i "s/SELINUX=${System_Value_Selinux}/SELINUX=${System_Selinux}/g" ${System_Conf_Selinux}
+fi
+
+
+<<lgp_disable
+awk -F: '{if ($7~/sh$/) {print $1}}' /etc/passwd
+
+awk -F: '{if (($3=="0" || $4=="0") && $7~/sh$/ && $1 != "root"){print $1}}' /etc/passwd
+
+passwd -S eyou
+passwd -l eyou
+passwd -u eyou 
+lgp_disable

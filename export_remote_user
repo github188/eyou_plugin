@@ -1,0 +1,404 @@
+#!/usr/bin/env bash
+# -*- zh_CN.UTF-8 -*-
+# @Date    : 2014-07-15 18:59:42
+# @Author  : zert (mailbad@163.com)
+# @Link    : https://github.com/mailbad
+# @Version : $Id$ (0.1)
+# Explain  : [ export email rcpt address / import gateway user white list ]
+
+###########
+# Config  #
+###########
+# Script disaply/debug 0-disable 1-enable
+Script_Display="1"
+Script_Debug="0"
+# Script Thread Number
+Script_Thread_Num="4"
+# Script TMP DIR
+Script_Fifo_Dir="/tmp/Export_RCPT_FIFO"
+
+###############
+# Export_Mail #
+###############
+# Eyou export email address day
+Eyou_Mta_Date="90"
+# Eyou export email from address 1 day number
+Eyou_From_Number="50"
+# Eyou export email to address 1 day number 0 is skip
+Eyou_To_Number="2"
+# Eyou export email to address all day number 0 is skip
+Eyou_All_To_Number="2"
+# skip user name 'abc;123;345'
+Eyou_Skip_User="mailer-daemon;"
+# my domain name '@abc.com;@123.com;@ccc.com'
+Eyou_Domain_Name=""
+#Eyou_Domain_Name="@shnu.edu.cn;"
+
+
+Eyou_Mail_Path="/usr/local/eyou/mail"
+Eyou_Mail_mysql="${Eyou_Mail_Path}/opt/mysql/bin/mysql"
+Eyou_Mail_mysqladmin="${Eyou_Mail_Path}/opt/mysql/bin/mysqladmin"
+Eyou_Mail_ip="127.1"
+Eyou_Mail_listen="3306"
+Eyou_Mail_Data="eyou_mail"
+Eyou_Mail_conn="${Eyou_Mail_mysql} -h ${Eyou_Mail_ip} -P ${Eyou_Mail_listen} -D ${Eyou_Mail_Data} -s -e"
+Eyou_Mail_LogDir="${Eyou_Mail_Path/log}"
+Eyou_Mtal_LogName="mta.log"
+###############
+# Import_Mail #
+###############
+#import type : 1 user_white_list ; 2 user_dynamic_list
+Import_type="2"
+Import_date="$(date +"%F %H:%M:%S")"
+Import_dynmaic_date="$(date +"%F %H:%M:%S" -d "-1 year ago")"
+Import_white_date="3000-12-31 00:00:00"
+Import_dynmaic_msg_flag="3"
+Import_action_flag="1"
+
+Eyou_gw_mysql="/opt/mysql/bin/mysql"
+Eyou_gw_mysqladmin="/opt/mysql/bin/mysqladmin"
+Eyou_gw_ip="127.1"
+Eyou_gw_listen="3301"
+Eyou_gw_Data="gw_user_list"
+Eyou_gw_white="user_white_list"
+Eyou_gw_dynmaic="user_dynamic_list"
+Eyou_gw_conn="${Eyou_gw_mysql} -h ${Eyou_gw_ip} -P ${Eyou_gw_listen} -D ${Eyou_gw_Data} -s -e"
+
+###########
+# Default #
+###########
+# Script Route
+Script_Path="$(cd $(dirname ${0});pwd -P)"
+Script_Log="${Script_Path}/log"
+export_email_logname="${Script_Log}/Export_Mail"
+export_email_addname="${Script_Log}/Export_Mail_ADD"
+export_email_Merge="${Script_Log}/Export_Merage"
+
+# Init Script echo message
+# State Mode: OK ERR NO OK_D ERR_D NO_D
+# Debug/display Mode: 0 1
+# Test cases: [ INIT_ECHO OK 0 "this is test" 1 test.txt ]
+# Explain : [ INIT_ECHO State_ok Debug_off "message" display_on fileroute_on ]
+INIT_ECHO () {
+	local ECHO_State="${1}"
+	local ECHO_Debug="${2}"
+	local ECHO_Message="${3}"
+	local ECHO_display="${4}"
+	local ECHO_Filename="${5}"
+	[ -z "${ECHO_display}" ] && local ECHO_display="1";
+	if [ "${ECHO_State}" == "OK" ] || [ "${ECHO_State}" == "ok" ]; then
+		local ECHO_State_Message="[\033[0;32m ${ECHO_Message} \033[0m]"
+	elif [ "${ECHO_State}" == "ERR" ] || [ "${ECHO_State}" == "err" ]; then
+		local ECHO_State_Message="[\033[0;31m ${ECHO_Message} \033[0m]"
+	elif [ "${ECHO_State}" == "NO" ] || [ "${ECHO_State}" == "no" ]; then
+		local ECHO_State_Message="${ECHO_Message}"
+	elif [ "${ECHO_State}" == "OK_D" ] || [ "${ECHO_State}" == "ok_d" ]; then
+		local ECHO_State_Message="$(date +'%F %H:%M:%S')		[\033[0;32m ${ECHO_Message} \033[0m]"
+	elif [ "${ECHO_State}" == "ERR_D" ] || [ "${ECHO_State}" == "err_d" ]; then
+		local ECHO_State_Message="$(date +'%F %H:%M:%S')		[\033[0;31m$(date +'%F %H:%M:%S') ${ECHO_Message} \033[0m]"
+	elif [ "${ECHO_State}" == "NO_D" ] || [ "${ECHO_State}" == "no_d" ]; then
+		local ECHO_State_Message="$(date +'%F %H:%M:%S')		${ECHO_Message}"
+	else
+		return 1;
+	fi
+
+	if [ "${ECHO_Debug}" -eq "0" ] && [ "${ECHO_display}" -eq "1" ] && [ -z "${ECHO_Filename}" ]; then
+		[ "${Script_Display}" -eq "1" ] && echo -e "${ECHO_State_Message}"
+		#echo -e "${ECHO_State_Message}" >> "${ECHO_Filename}"
+	elif [ "${ECHO_Debug}" -eq "0" ] && [ "${ECHO_display}" -eq "0" ] && [ -z "${ECHO_Filename}" ]; then
+		#echo -e "${ECHO_State_Message}"
+		#echo -e "${ECHO_State_Message}" >> "${ECHO_Filename}"
+		:
+	elif [ "${ECHO_Debug}" -eq "0" ] && [ "${ECHO_display}" -eq "1" ] && [ ! -z "${ECHO_Filename}" ]; then
+		[ "${Script_Display}" -eq "1" ] && echo -e "${ECHO_State_Message}"
+		wait;
+		echo -e "${ECHO_State_Message}" >> "${ECHO_Filename}"
+	elif [ "${ECHO_Debug}" -eq "0" ] && [ "${ECHO_display}" -eq "0" ] && [ ! -z "${ECHO_Filename}" ]; then
+		#[ "${Script_Display}" -eq "1" ] && echo -e "${ECHO_State_Message}"
+		echo -e "${ECHO_State_Message}" >> "${ECHO_Filename}"
+	elif [ "${ECHO_Debug}" -eq "1" ] && [ "${ECHO_display}" -eq "1" ] && [ -z "${ECHO_Filename}" ]; then
+		[ "${Script_Debug}" -eq "1" ] && echo -e "${ECHO_State_Message}"
+		#echo -e ${ECHO_State_Message} >> ${ECHO_Filename}
+	elif [ "${ECHO_Debug}" -eq "1" ] && [ "${ECHO_display}" -eq "0" ] && [ -z "${ECHO_Filename}" ]; then
+		#[ "${Script_Debug}" -eq "1" ] && echo -e "${ECHO_State_Message}"
+		#echo -e "${ECHO_State_Message}" >> "${ECHO_Filename}"
+		:
+	elif [ "${ECHO_Debug}" -eq "1" ] && [ "${ECHO_display}" -eq "1" ] && [ ! -z "${ECHO_Filename}" ]; then
+		[ "${Script_Debug}" -eq "1" ] && echo -e "${ECHO_State_Message}"
+		wait;
+		echo -e "${ECHO_State_Message}" >> "${ECHO_Filename}"
+	elif [ "${ECHO_Debug}" -eq "1" ] && [ "${ECHO_display}" -eq "0" ] && [ ! -z "${ECHO_Filename}" ]; then
+		#[ "${Script_Debug}" -eq "1" ] && echo -e "${ECHO_State_Message}"
+		echo -e "${ECHO_State_Message}" >> "${ECHO_Filename}"
+	else
+		return 1;
+	fi
+}
+
+INIT_FIFO () {
+	local INIT_COMMAND="${1}"
+	local INIT_FOR_COMMAND="${2}"
+	[ -d "${Script_Fifo_Dir}" ] || mkdir -p ${Script_Fifo_Dir}
+	local Script_Fifo_File="${Script_Fifo_Dir}/$$.pid"
+	mkfifo ${Script_Fifo_File}
+	exec 6<>"${Script_Fifo_File}"
+	rm ${Script_Fifo_File}
+	for (( i = 0; i < ${Script_Thread_Num} ; i++ )); do
+		echo >&6
+	done
+	wait
+
+	for Script_Thread in ${INIT_FOR_COMMAND}; do
+	read -u6
+	{
+		${INIT_COMMAND}
+	wait;echo >&6
+	} &
+	done
+	wait;exec 6>&-
+	return 0
+}
+
+Export_Check () {
+	if [ -d ${Eyou_Mail_LogDir} ];then
+		:
+	else
+		INIT_ECHO "ERR" "0" "not find ${Eyou_Mail_LogDir}"
+		exit 1
+	fi
+	if [ -z "${Eyou_Domain_Name}" ];then
+ 	if ${Eyou_Mail_mysqladmin} -h ${Eyou_Mail_ip} -P ${Eyou_Mail_listen} ping;then
+ 		:
+ 	else
+		INIT_ECHO "ERR" "0" "${Eyou_Mail_ip} ${Eyou_Mail_listen}  conn fail"
+		exit 1
+ 	fi
+ 	Eyou_Domain_Name=$(${Eyou_Mail_conn} "select domain_name from domain_key;")
+	fi
+
+}
+
+#export mta.log email to address
+Export_mta_email () {
+	[ -d ${export_email_logname} ] || mkdir -p ${export_email_logname}
+	if [ -f ${export_email_logname}/${Script_Thread##*/mta.log.} ] && [ "$(tail -n1 ${export_email_logname}/${Script_Thread##*/mta.log.})" == "export_email_end" ];then
+	    local Text_Log=""
+	    INIT_ECHO "OK" "0" "Export mta email log (${Script_Thread}) skip ..."
+	else
+	    [ -f ${export_email_logname}/${Script_Thread##*/mta.log.} ] && rm -rf ${export_email_logname}/${Script_Thread##*/mta.log.}
+	    local Text_Log=$(awk '{if($3 == "remote" && $7 == "success"){gsub(/\[/, " ", $0);gsub(/]/, " ", $0);gsub(/->/, " ", $0);gsub(/\ \./, "", $0);print $1,$2,$5,$9,$10}}' ${Script_Thread} )
+	fi
+	[ ! -z "${Text_Log}" ] && {
+	    INIT_ECHO "NO" "1" "${Text_Log}" "1" "${export_email_logname}/${Script_Thread##*/mta.log.}"
+	    wait
+	    INIT_ECHO "NO" "0" "export_email_end" "0" "${export_email_logname}/${Script_Thread##*/mta.log.}"
+	    }
+}
+
+#check from address export
+Check_email_from_number () {
+[ -d ${export_email_addname} ] || mkdir -p ${export_email_addname}
+if [ -f "${export_email_addname}/.export_email_end.${Script_Thread##*/}" ] && [ "$(tail -n1 ${export_email_addname}/.export_email_end.${Script_Thread##*/})" == "export_email_end" ];then
+	    INIT_ECHO "OK" "0" "Export email (${Script_Thread}) check address skip ..."
+else
+	awk '{if($4 ~ /@/)email_from[$4]++}END{for (email_address in email_from)print email_address FS email_from[email_address]}' ${Script_Thread}|while read email_line
+	do
+	if [ ! -z "${email_line}" ];then
+		local email_from_number=$(echo "${email_line}"|awk '{print $2}')
+		local email_from_address=$(echo "${email_line}"|awk '{print $1}')
+		for eyou_domain_name in $(echo -e "${Eyou_Domain_Name}"|sed 's/;/ /g')
+		do
+		if [[ ${email_from_address} =~ ${eyou_domain_name} ]]; then
+			for eyou_skip_user in $(echo -e "${Eyou_Skip_User}"|sed 's/;/ /g')
+			do
+			if [[ ${email_from_address} =~ ${eyou_skip_user} ]]; then
+#				INIT_ECHO "OK" "0" "SKIP USER IS ${email_from_address}"
+				local exit_user_val="$((${exit_user_val}+1))"
+			else
+				local run_user_val="0"
+			fi
+			done
+		else
+			local exit_domain_val="$((${exit_domain_val}+1))"
+#			INIT_ECHO "ERR" "0" "DOMAIN NOT MY ${email_from_address} "
+		fi
+		done
+
+	if [ ! -z "${run_user_val}" ];then
+		if [ "${Eyou_From_Number}" -gt "${email_from_number}" ]; then
+			local export_email_ok="$(awk '{if($4 == '\"${email_from_address}\"'){print $4":::"$5}}' ${Script_Thread}|awk '{a[$1]++}END{for(i in a)print i}')"
+		else
+			if [ ${Eyou_To_Number} -ne 0 ];then
+			awk '{if($4 == '\"${email_from_address}\"')email_to[$5]++}END{for(email_address in email_to)print email_address FS email_to[email_address]}' ${Script_Thread}|while read email_to_line
+			do
+				local email_to_number=$(echo "${email_to_line}"|awk '{print $2}')
+				local email_to_address=$(echo "${email_to_line}"|awk '{print $1}')
+				if [ ${Eyou_To_Number} -le ${email_to_number} ];then
+					local export_email_ok="${email_from_address}:::${email_to_address}"
+				else
+					local export_email_err="$(awk '{if($4 == '\"${email_from_address}\"' && $5 == '\"${email_to_address}\"'){print}}' ${Script_Thread})"
+				fi
+				[ ! -z "${export_email_ok}" ] && INIT_ECHO "NO" "1" "${export_email_ok}" "1" "${export_email_addname}/Export_Mail_Ok";unset export_email_ok
+				[ ! -z "${export_email_err}" ] && INIT_ECHO "NO" "1" "${export_email_err}" "1" "${export_email_addname}/Export_Mail_ERR";unset export_email_err
+			done
+			else
+				local export_email_err="$(awk '{if($4 == '\"${email_from_address}\"'){print}}' ${Script_Thread})"
+			fi
+		fi
+		[ ! -z "${export_email_ok}" ] && INIT_ECHO "NO" "1" "${export_email_ok}" "1" "${export_email_addname}/Export_Mail_Ok";unset export_email_ok
+		[ ! -z "${export_email_err}" ] && INIT_ECHO "NO" "1" "${export_email_err}" "1" "${export_email_addname}/Export_Mail_ERR";unset export_email_err
+	elif [ -z "${exit_user_val}" ] && [ ! -z "${exit_domain_val}" ] && [ -z "${run_user_val}" ];then
+			INIT_ECHO "ERR" "0" "DOMAIN NOT MY ${email_from_address} "
+			INIT_ECHO "NO" "1" "$(awk '{if($4 == '\"${email_from_address}\"'){print}}' ${Script_Thread})" "1" "${export_email_addname}/Export_Mail_NOTDOMAIN"
+	elif [ ! -z "${exit_user_val}" ] && [ -z "${exit_domain_val}" ] && [ -z "${run_user_val}" ];then
+			INIT_ECHO "OK" "0" "SKIP USER IS ${email_from_address}"
+			INIT_ECHO "NO" "1" "$(awk '{if($4 == '\"${email_from_address}\"'){print}}' ${Script_Thread})" "1" "${export_email_addname}/Export_Mail_SKIPUSER"
+	elif [ ! -z "${exit_user_val}" ] && [ ! -z "${exit_domain_val}" ] && [ -z "${run_user_val}" ];then
+			INIT_ECHO "ERR" "0" "DOMAIN NOT MY ${email_from_address} "
+			INIT_ECHO "NO" "1" "$(awk '{if($4 == '\"${email_from_address}\"'){print}}' ${Script_Thread})" "1" "${export_email_addname}/Export_Mail_NOTDOMAIN"
+	fi
+	unset run_user_val
+	unset exit_domain_val
+	unset exit_user_val
+	fi
+	done
+	INIT_ECHO "NO" "0" "export_email_end" "0" "${export_email_addname}/.export_email_end.${Script_Thread##*/}"
+fi
+}
+
+Merge_ERR () {
+[ -d "${export_email_Merge}" ] || mkdir -p ${export_email_Merge}
+local Merge_ERR_log="${export_email_addname}/Export_Mail_ERR"
+local Merge_OK_log="${export_email_addname}/Export_Mail_Ok"
+if [ "${Eyou_All_To_Number}" -eq "0" ];then
+	local export_email_merge_err="$(awk '{if($4 == '\"${Script_Thread}\"'){print}}' ${Merge_ERR_log})"
+	[ ! -z "${export_email_merge_err}" ] && INIT_ECHO "NO" "1" "${export_email_ok}" "1" "${export_email_Merge}/Export_From_Err"
+	unset export_email_merge_err
+else
+	awk '{if($4 == '\"${Script_Thread}\"')a[$5]++}END{for(i in a)print i FS a[i]}' ${Merge_ERR_log}|while read email_Merge 
+	do
+		local email_to_number_merge=$(echo -e "${email_Merge}"|awk '{print $2}')
+		local email_to_address_merge=$(echo -e "${email_Merge}"|awk '{print $1}')
+		if [ "${Eyou_All_To_Number}" -le "${email_to_number_merge}" ];then
+			local export_email_merge_ok="${Script_Thread}:::${email_to_address_merge}"
+		else
+			local export_email_merge_err="$(awk '{if($4 == '\"${Script_Thread}\"' && $5 == '\"${email_to_address_merge}\"'){print}}' ${Merge_ERR_log})"
+		fi
+		[ ! -z "${export_email_merge_ok}" ] && INIT_ECHO "NO" "1" "${export_email_merge_ok}" "1" "${export_email_Merge}/export_tmp1"
+		[ ! -z "${export_email_merge_err}" ] && INIT_ECHO "NO" "1" "${export_email_merge_err}" "1" "${export_email_Merge}/Export_From_Err"
+		unset export_email_merge_ok
+		unset export_email_merge_err
+	done
+fi
+}
+
+Merge_Duplicate_remove () {
+	if [ -f "${export_email_Merge}/Export_From_Address_list" ] && [ "$(tail -n1 ${export_email_Merge}/Export_From_Address_list)" == "export_email_end" ];then
+    INIT_ECHO "OK" "0" "Export MTA FROM ADDRESS ( merge Duplicate remove ) skip ..."
+	else
+	local duplicate_remote="$(awk '{a[$1]++}END{for(i in a)print i}' ${export_email_Merge}/export_tmp1 ${export_email_addname}/Export_Mail_Ok)"
+	wait
+	INIT_ECHO "NO" "1" "${duplicate_remote}" "1" "${export_email_Merge}/Export_From_Address_list"
+	INIT_ECHO "NO" "0" "export_email_end" "0" "${export_email_Merge}/Export_From_Address_list"
+	fi
+	INIT_ECHO "no" "0" "export mail from address while list access,file dir is :"
+	INIT_ECHO "ok" "0" "	while list is :	${export_email_Merge}/Export_From_Address_list"
+	INIT_ECHO "ok" "0" "	skip user is :	${export_email_addname}/Export_Mail_SKIPUSER"
+	INIT_ECHO "ERR" "0" "	export fail user file is :	${export_email_Merge}/Export_From_Err"
+	INIT_ECHO "ERR" "0" "	export not my domain file is :	${export_email_addname}/Export_Mail_NOTDOMAIN"
+}
+
+
+
+Import_Check () {
+	if [ -f "${export_email_Merge}/Export_From_Address_list" ] && [ "$(tail -n1 ${export_email_Merge}/Export_From_Address_list)" == "export_email_end" ];then
+ 		:
+ 	else
+ 		INIT_ECHO "ERR" "0" "not find (${export_email_Merge}/Export_From_Address_list) "
+ 		exit 1
+ 	fi
+ 	if ${Eyou_gw_mysqladmin} -h ${Eyou_gw_ip} -P ${Eyou_gw_listen} ping;then
+ 		:
+ 	else
+ 		INIT_ECHO "ERR" "0" "${Eyou_gw_ip} ${Eyou_gw_listen} conn fail"
+ 		exit 1
+ 	fi
+
+}
+
+Import_From_Address () {
+	local user_email=$(echo -e "${Script_Thread}" |awk -F":::" '{print $1}')
+	local into_email=$(echo -e "${Script_Thread}" |awk -F":::" '{print $2}')
+	local user_name=$(echo -e "${user_email}"|awk -F"@" '{print $1}')
+	local user_domain=$(echo -e "${user_email}"|awk -F"@" '{print $2}')
+	local into_name=$(echo -e "${into_email}"|awk -F"@" '{print $1}')
+	local into_domain=$(echo -e "${into_email}"|awk -F"@" '{print $2}')
+	local count_dynmaic=$(${Eyou_gw_conn} "select count(*) from ${Eyou_gw_dynmaic} where in_domain_name = '${user_domain}' and in_user_name = '${user_name}' and out_domain_name = '${into_domain}' and out_user_name = '${into_name}'")
+	local count_white=$(${Eyou_gw_conn} "select count(*) from ${Eyou_gw_white} where in_domain_name = '${user_domain}' and in_user_name = '${user_name}' and out_domain_name = '${into_domain}' and out_user_name = '${into_name}'")
+	if [ "${count_white}" -eq "0" ] && [ "${count_dynmaic}" -eq "0" ];then
+		if [ "${Import_type}" -eq "1" ];then
+		${Eyou_gw_conn} "insert into ${Eyou_gw_white} value ('${user_domain}','${user_name}','${into_domain}','${into_name}','${Import_date}','${Import_white_date}','${Import_action_flag}');"
+		elif [ "${Import_type}" -eq "2" ];then
+		${Eyou_gw_conn} "insert into ${Eyou_gw_dynmaic} value ('${user_domain}','${user_name}','${into_domain}','${into_name}','${Import_date}','${Import_dynmaic_date}','${Import_action_flag}','${Import_dynmaic_msg_flag}');"
+		fi
+		if [ "${?}" -eq "0" ];then
+		INIT_ECHO "OK" "0" "import user email ${user_email} --> ${into_email} OK " "1" ${Script_Log}/Import.`date -I`.log
+		else
+		INIT_ECHO "ERR" "0" "import user email ${user_email} --> ${into_email} Fail " "1" ${Script_Log}/Import.`date -I`.log
+		fi
+	else
+	INIT_ECHO "OK" "0" "import user email ${user_email} --> ${into_email} already exists " "1" ${Script_Log}/Import.`date -I`.log
+	return 0
+	fi
+	unset user_email
+	unset into_email
+	unset user_name
+	unset user_domain
+	unset into_name
+	unset into_domain
+	unset count_white
+	unset count_dynmaic
+}
+
+Export_Address_list () {
+Export_Check
+wait
+INIT_FIFO Export_mta_email "$(find ${Eyou_Mail_LogDir} -type f -mtime -${Eyou_Mta_Date} -name ${Eyou_Mtal_LogName}.*)"
+wait
+INIT_FIFO Check_email_from_number "$(find ${export_email_logname} -type f -name "*[0-9].[0-9]*")"
+wait
+if [ -f "${export_email_Merge}/.Export_TMP" ];then
+    INIT_ECHO "OK" "0" "Export MTA FROM ADDRESS ( merge tmp ) skip ..."
+else
+	[ -f "${export_email_Merge}/export_tmp1" ] && rm -rf ${export_email_Merge}/export_tmp1
+	[ -f "${export_email_Merge}/Export_From_Err" ] && rm -rf ${export_email_Merge}/Export_From_Err
+	INIT_FIFO Merge_ERR "$(awk '{a[$4]++}END{for(i in a)print i}' ${export_email_addname}/Export_Mail_ERR)"
+	wait
+	touch ${export_email_Merge}/.Export_TMP
+fi
+wait
+Merge_Duplicate_remove
+#INIT_FIFO Merge_Duplicate_remove "$(awk '{a[$4]++}END{for(i in a)print i}' ${export_email_addname}/Export_Mail_ERR)"
+}
+
+Import_Address_list () {
+Import_Check
+INIT_FIFO "Import_From_Address" "$(awk '{print}' ${export_email_Merge}/Export_From_Address_list)"
+}
+
+[ "${1}" == "-xx" ] && Script_Debug="1"
+case $1 in
+	export)
+		Export_Address_list
+		;;
+	import)
+		Import_Address_list
+		;;
+	*)
+		INIT_ECHO "NO" "0" "$0"
+		INIT_ECHO "OK"	"0" "	export"
+		INIT_ECHO "NO" "0" "		export email address"
+		INIT_ECHO "OK"	"0" "	import"
+		INIT_ECHO "NO" "0" "		import email address"
+		;;
+esac
