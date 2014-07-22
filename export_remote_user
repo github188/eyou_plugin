@@ -327,6 +327,7 @@ Import_Check () {
 }
 
 Import_From_Address () {
+	[ "${Script_Thread}" == "export_email_end" ] && return 0
 	local user_email=$(echo -e "${Script_Thread}" |awk -F":::" '{print $1}')
 	local into_email=$(echo -e "${Script_Thread}" |awk -F":::" '{print $2}')
 	local user_name=$(echo -e "${user_email}"|awk -F"@" '{print $1}')
